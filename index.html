@@ -40,7 +40,7 @@
         }
         @keyframes pop-in {
             0% { transform: scale(0); opacity: 0; }
-            80% { transform: scale(1.1); opacity: 1; }
+            60% { transform: scale(1.2); opacity: 1; }
             100% { transform: scale(1); opacity: 1; }
         }
     </style>
@@ -110,6 +110,8 @@
         const LucideCrown = (props) => <Icon {...props} fill="currentColor" path={<><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/></>} />;
         const LucideZap = (props) => <Icon {...props} fill="currentColor" path={<><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></>} />;
         const LucideHistory = (props) => <Icon {...props} path={<><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></>} />;
+        const LucideVolume2 = (props) => <Icon {...props} path={<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></>} />;
+        const LucideVolumeX = (props) => <Icon {...props} path={<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" x2="17" y1="9" y2="15"/><line x1="17" x2="23" y1="9" y2="15"/></>} />;
 
         // --- Firebase Configuration ---
         const defaultFirebaseConfig = {
@@ -140,30 +142,47 @@
         const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
         const VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
+        // 使用免費的 Mixkit 音效連結
         const SOUND_URLS = {
-            start: 'https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.m4a', 
-            tick: 'https://assets.mixkit.co/active_storage/sfx/2587/2587-preview.m4a',
-            buzz: 'https://assets.mixkit.co/active_storage/sfx/2863/2863-preview.m4a',
-            correct: 'https://assets.mixkit.co/active_storage/sfx/270/270-preview.m4a',
-            wrong: 'https://assets.mixkit.co/active_storage/sfx/2880/2880-preview.m4a',
+            start: 'https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.m4a', // Whoosh
+            tick: 'https://assets.mixkit.co/active_storage/sfx/2587/2587-preview.m4a',  // Clock tick
+            buzz: 'https://assets.mixkit.co/active_storage/sfx/2863/2863-preview.m4a',  // Alarm
+            correct: 'https://assets.mixkit.co/active_storage/sfx/270/270-preview.m4a', // Ding
+            wrong: 'https://assets.mixkit.co/active_storage/sfx/2880/2880-preview.m4a', // Error buzz
+            click: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.m4a', // Pop click
+            card: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.m4a',  // Soft tap
+            win: 'https://assets.mixkit.co/active_storage/sfx/2015/2015-preview.m4a',   // Win chime
         };
 
         const useAudio = () => {
             const audioRefs = useRef({});
+            const [isMuted, setIsMuted] = useState(false);
+
             useEffect(() => {
+                // Initialize Audio objects
                 Object.keys(SOUND_URLS).forEach(key => {
-                    audioRefs.current[key] = new Audio(SOUND_URLS[key]);
-                    audioRefs.current[key].volume = 0.5;
+                    const audio = new Audio(SOUND_URLS[key]);
+                    audio.preload = 'auto';
+                    audioRefs.current[key] = audio;
                 });
             }, []);
+
             const playSound = useCallback((soundName) => {
+                if (isMuted) return;
+                
                 const audio = audioRefs.current[soundName];
                 if (audio) {
-                    audio.currentTime = 0;
-                    audio.play().catch(e => console.log("Audio play prevented:", e));
+                    audio.currentTime = 0; // Rewind to start
+                    audio.volume = 0.5;
+                    // Catch promise to avoid "play() failed because the user didn't interact" errors
+                    audio.play().catch(e => {
+                        // Silent fail if browser blocks auto-play before interaction
+                        console.warn("Audio blocked:", e); 
+                    });
                 }
-            }, []);
-            return playSound;
+            }, [isMuted]);
+
+            return { playSound, isMuted, setIsMuted };
         };
 
         const generateDeck = () => {
@@ -205,24 +224,24 @@
         };
 
         // --- Result Animation Component ---
-        const RoundResultOverlay = ({ result }) => {
+        const RoundResultOverlay = ({ result, playSound }) => {
             const [showTokens, setShowTokens] = useState([]);
             
             useEffect(() => {
                 if (!result || !result.expression) return;
+                
+                // Play result sound immediately
+                if(result.result === 'Success') playSound('correct');
+                else if(result.result === 'Impossible') playSound('wrong'); // Use wrong sound for impossible for now
+                else playSound('wrong');
+
                 const tokens = result.expression.split(' ');
                 let current = 0;
                 
-                const interval = setInterval(() => {
-                    if (current < tokens.length) {
-                        setShowTokens(prev => [...prev, tokens[current]]);
-                        current++;
-                    } else {
-                        clearInterval(interval);
-                    }
-                }, 300); 
+                // Use CSS delays, but we need to mount them to trigger animations
+                // Here we just set the tokens, the CSS handles delay
+                setShowTokens(tokens);
 
-                return () => clearInterval(interval);
             }, [result]);
 
             if (!result) return null;
@@ -234,6 +253,7 @@
                             {result.result === 'Success' ? '精彩重播' : '回合結束'}
                         </h2>
                         
+                        {/* Cards Display */}
                         <div className="flex gap-4 mb-10 justify-center">
                             {result.cards && result.cards.map((c, i) => {
                                  const { rank, suit, color } = getCardDetails(c);
@@ -266,31 +286,33 @@
                                      const isOp = ['+', '-', '*', '×', '/', '÷', '(', ')'].includes(formatToken(t));
                                      return (
                                          <span key={i} className={`
-                                            px-3 py-1 rounded-lg shadow-lg border-2 text-2xl md:text-3xl font-black font-mono animate-[pop-in_0.2s_ease-out]
+                                            px-3 py-1 rounded-lg shadow-lg border-2 text-2xl md:text-3xl font-black font-mono 
+                                            opacity-0 animate-[pop-in_0.2s_ease-out_forwards]
                                             ${isOp 
                                                 ? 'bg-blue-900/80 text-blue-300 border-blue-700' 
                                                 : 'bg-slate-200 text-slate-900 border-slate-400 font-serif'}
-                                         `}>
+                                         `} style={{ animationDelay: `${0.5 + i * 0.2}s` }}>
                                              {formatToken(t)}
                                          </span>
                                      )
                                  })}
-                                 {showTokens.length === result.expression.split(' ').length && (
-                                     <span className="text-3xl md:text-4xl font-black text-yellow-400 animate-[pop-in_0.2s_ease-out_0.2s_forwards] opacity-0 ml-2 mt-1">
+                                 {showTokens.length > 0 && (
+                                     <span className="text-3xl md:text-4xl font-black text-yellow-400 opacity-0 animate-[pop-in_0.2s_ease-out_forwards] ml-2 mt-1"
+                                           style={{ animationDelay: `${0.5 + showTokens.length * 0.2}s` }}>
                                          = 24
                                      </span>
                                  )}
                              </div>
                         )}
 
-                        <div className="relative h-24 flex items-center justify-center">
+                        <div className="relative h-24 flex items-center justify-center opacity-0 animate-[stamp-in_0.3s_cubic-bezier(0.175,0.885,0.32,1.275)_forwards]" style={{ animationDelay: `${1.5 + (showTokens.length || 0) * 0.2}s` }}>
                              {result.result === 'Success' && (
-                                 <div className="text-6xl font-black text-green-500 border-8 border-green-500 rounded-xl px-8 py-2 -rotate-12 animate-stamp drop-shadow-[0_0_20px_rgba(34,197,94,0.6)]">
+                                 <div className="text-6xl font-black text-green-500 border-8 border-green-500 rounded-xl px-8 py-2 -rotate-12 drop-shadow-[0_0_20px_rgba(34,197,94,0.6)]">
                                      CORRECT
                                  </div>
                              )}
                              {(result.result === 'Wrong' || result.result === 'Timeout') && (
-                                 <div className="text-6xl font-black text-red-500 border-8 border-red-500 rounded-xl px-8 py-2 rotate-12 animate-stamp drop-shadow-[0_0_20px_rgba(239,68,68,0.6)]">
+                                 <div className="text-6xl font-black text-red-500 border-8 border-red-500 rounded-xl px-8 py-2 rotate-12 drop-shadow-[0_0_20px_rgba(239,68,68,0.6)]">
                                      FAIL
                                  </div>
                              )}
@@ -317,7 +339,7 @@
             const [timeLeft, setTimeLeft] = useState(0);
             const [totalTime, setTotalTime] = useState(60);
 
-            const playSound = useAudio();
+            const { playSound, isMuted, setIsMuted } = useAudio();
             const lastPlayedTickRef = useRef(null);
 
             // Auth
@@ -378,6 +400,7 @@
             // Audio Side Effects
             useEffect(() => {
                 if (roomData?.status === 'playing') playSound('start');
+                if (roomData?.status === 'finished') playSound('win');
             }, [roomData?.status]);
 
             useEffect(() => {
@@ -411,11 +434,10 @@
                 clearInterval(timerRef.current);
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
                 if (data.gameState.buzzerId) {
-                    playSound('wrong');
+                    // Buzz Timeout
                     await updateScoreAndNextRound(roomRef, data.gameState.buzzerId, -1, "超時未作答", "Timeout");
                 } else {
                     // Round Timeout (nobody answered)
-                    // Need current data for this logic too
                     const currentData = roomDataRef.current || data;
                     const historyEntry = {
                         round: currentData.gameState.round || 1,
@@ -439,6 +461,7 @@
 
             // Actions
             const createRoom = async (name, password) => {
+                playSound('click');
                 if (!name) return;
                 const newRoomRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'math24_rooms'));
                 const initialData = {
@@ -452,6 +475,7 @@
             };
 
             const joinRoom = async (room) => {
+                playSound('click');
                 if (room.password && prompt("請輸入房間密碼:") !== room.password) { alert("密碼錯誤"); return; }
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', room.id);
                 await updateDoc(roomRef, { [`players.${user.uid}`]: { id: user.uid, name: userName, score: 2, ready: false, status: 'online' } });
@@ -460,12 +484,14 @@
             };
 
             const toggleReady = async () => {
+                playSound('click');
                 if (!roomId) return;
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
                 await updateDoc(roomRef, { [`players.${user.uid}.ready`]: !roomData.players[user.uid].ready });
             };
 
             const startGame = async () => {
+                playSound('click');
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
                 await startNewRound(roomRef, generateDeck(), true);
             };
@@ -490,6 +516,7 @@
             };
 
             const leaveRoom = async () => {
+                playSound('click');
                 if (!roomId) return;
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
                 if (Object.keys(roomData.players).length <= 1) { await deleteDoc(roomRef); } else {
@@ -501,9 +528,11 @@
             };
 
             const buzz = async () => {
+                // Note: sound is handled by useEffect listener on gameState.buzzerId
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
                 if (roomData.gameState.buzzerId) return;
                 try {
+                    // Removed buffer, now using exact 10s
                     await updateDoc(roomRef, { 'gameState.buzzerId': user.uid, 'gameState.buzzerEndTime': Date.now() + 10000 });
                     setExpression([]); setUsedCardIndices([]);
                 } catch (e) { console.error("搶答失敗", e); }
@@ -519,10 +548,8 @@
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
 
                 if (Math.abs(result - 24) < 0.0001 && usedCardIndices.length === 4) {
-                    playSound('correct');
                     await updateScoreAndNextRound(roomRef, user.uid, 1, displayExpr, "Success");
                 } else {
-                    playSound('wrong');
                     await updateScoreAndNextRound(roomRef, user.uid, -1, displayExpr, "Wrong");
                 }
             };
@@ -569,6 +596,7 @@
             };
 
             const voteImpossible = async () => {
+                playSound('click');
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
                 const votes = roomData.gameState.impossibleVotes || [];
                 if (votes.includes(user.uid)) return;
@@ -594,6 +622,17 @@
                 }
             };
 
+            // --- Sound Controller UI ---
+            const SoundController = () => (
+                <button 
+                    onClick={() => setIsMuted(!isMuted)}
+                    className="fixed top-4 right-4 z-50 bg-slate-800/80 p-2 rounded-full text-slate-300 hover:text-white hover:bg-slate-700 transition border border-slate-600"
+                    title={isMuted ? "開啟音效" : "靜音"}
+                >
+                    {isMuted ? <LucideVolumeX className="w-6 h-6"/> : <LucideVolume2 className="w-6 h-6"/>}
+                </button>
+            );
+
             // --- Views ---
 
             // Login
@@ -605,7 +644,7 @@
                                 <LucideGamepad2 className="w-12 h-12 text-yellow-400" /> 數24 錦標賽
                             </h1>
                             <input type="text" placeholder="輸入選手代號 (暱稱)" className="w-full p-4 text-xl bg-slate-950 border-2 border-slate-600 text-white rounded-xl mb-6 focus:outline-none focus:border-yellow-500 transition text-center placeholder-slate-500" value={userName} onChange={(e) => setUserName(e.target.value)} />
-                            <button onClick={() => { if (userName.trim()) setCurrentView('lobby'); }} disabled={!userName.trim()} className="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white font-bold py-4 rounded-xl text-2xl transition disabled:opacity-50 shadow-lg shadow-blue-900/50 border border-blue-500">
+                            <button onClick={() => { if (userName.trim()) { playSound('click'); setCurrentView('lobby'); }}} disabled={!userName.trim()} className="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white font-bold py-4 rounded-xl text-2xl transition disabled:opacity-50 shadow-lg shadow-blue-900/50 border border-blue-500">
                                 進入賽事大廳
                             </button>
                         </div>
@@ -617,6 +656,7 @@
             if (currentView === 'lobby') {
                 return (
                     <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-black">
+                        <SoundController />
                         <div className="max-w-5xl mx-auto">
                             <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
                                 <h2 className="text-4xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-yellow-300 flex items-center gap-2">
@@ -675,7 +715,7 @@
                 const { rank, suit, color } = getCardDetails(cardId);
                 const isRed = color.includes('red');
                 return (
-                    <button onClick={() => onClick && onClick(index)} disabled={disabled || used} className={`relative w-20 h-28 md:w-28 md:h-40 bg-gradient-to-b from-slate-50 to-slate-200 rounded-xl shadow-lg border-2 flex flex-col items-center justify-center text-4xl md:text-5xl font-serif select-none transition-all duration-200 ${isRed ? 'text-red-600 border-red-200' : 'text-slate-900 border-slate-300'} ${used ? 'opacity-40 scale-95 grayscale' : 'hover:-translate-y-2 hover:shadow-2xl hover:border-blue-400 cursor-pointer'} ${disabled && !used ? 'cursor-not-allowed opacity-70' : ''} before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/40 before:to-transparent before:rounded-xl before:pointer-events-none`}>
+                    <button onClick={() => { if(onClick && !disabled) { playSound('card'); onClick(index); }}} disabled={disabled || used} className={`relative w-20 h-28 md:w-28 md:h-40 bg-gradient-to-b from-slate-50 to-slate-200 rounded-xl shadow-lg border-2 flex flex-col items-center justify-center text-4xl md:text-5xl font-serif select-none transition-all duration-200 ${isRed ? 'text-red-600 border-red-200' : 'text-slate-900 border-slate-300'} ${used ? 'opacity-40 scale-95 grayscale' : 'hover:-translate-y-2 hover:shadow-2xl hover:border-blue-400 cursor-pointer'} ${disabled && !used ? 'cursor-not-allowed opacity-70' : ''} before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/40 before:to-transparent before:rounded-xl before:pointer-events-none`}>
                         <div className="absolute top-2 left-3 text-lg md:text-xl font-bold">{rank}</div>
                         <div className="text-5xl md:text-6xl drop-shadow-sm">{suit}</div>
                         <div className="absolute bottom-2 right-3 text-lg md:text-xl font-bold transform rotate-180">{rank}</div>
@@ -699,6 +739,7 @@
                 
                 return (
                     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-indigo-900 to-slate-950 text-white overflow-y-auto">
+                        <SoundController />
                         <div className="bg-slate-800/80 backdrop-blur-xl rounded-3xl p-10 max-w-4xl w-full text-center shadow-2xl border border-slate-600 relative overflow-hidden my-8">
                             <div className="absolute inset-0 bg-gradient-to-b from-yellow-500/10 via-transparent to-transparent opacity-50 pointer-events-none"></div>
                             
@@ -753,10 +794,11 @@
 
             return (
                 <div className="min-h-screen bg-slate-950 flex flex-col md:flex-row overflow-hidden bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-950/50 via-slate-950 to-black text-slate-100">
+                    <SoundController />
                     
                     {/* Render Result Overlay if resolving */}
                     {isResolving && roomData.gameState.lastRoundResult && (
-                        <RoundResultOverlay result={roomData.gameState.lastRoundResult} />
+                        <RoundResultOverlay result={roomData.gameState.lastRoundResult} playSound={playSound} />
                     )}
 
                     <div className="w-full md:w-72 bg-slate-900/90 backdrop-blur-md border-r border-slate-800 p-6 flex flex-col gap-6 shadow-2xl z-10">
@@ -833,9 +875,9 @@
                                         </div>
                                         <div className="grid grid-cols-4 md:grid-cols-8 gap-3 mb-6">
                                             {/* FIX: Map * to × and / to ÷ for display */}
-                                            {['+', '-', '*', '/', '(', ')'].map(op => ( <button key={op} onClick={() => setExpression([...expression, { type: 'op', val: op, label: op === '*' ? '×' : op === '/' ? '÷' : op }])} className="bg-slate-700 hover:bg-blue-600 text-blue-100 border border-slate-600 border-b-4 hover:border-blue-800 active:border-b-0 active:translate-y-1 font-black py-4 rounded-xl text-2xl transition-all shadow-md">{op === '*' ? '×' : op === '/' ? '÷' : op}</button> ))}
-                                            <button onClick={() => { if(expression.length === 0) return; const last = expression[expression.length - 1]; if (last.type === 'num') { setUsedCardIndices(prev => { const newArr = [...prev]; newArr.pop(); return newArr; }); } setExpression(expression.slice(0, -1)); }} className="bg-yellow-600/80 hover:bg-yellow-600 text-yellow-100 border-b-4 border-yellow-800 active:border-b-0 active:translate-y-1 font-bold py-4 rounded-xl text-xl transition-all shadow-md">←</button>
-                                            <button onClick={() => { setExpression([]); setUsedCardIndices([]); }} className="bg-red-600/80 hover:bg-red-600 text-red-100 border-b-4 border-red-800 active:border-b-0 active:translate-y-1 font-bold py-4 rounded-xl text-xl transition-all shadow-md">C</button>
+                                            {['+', '-', '*', '/', '(', ')'].map(op => ( <button key={op} onClick={() => { playSound('click'); setExpression([...expression, { type: 'op', val: op, label: op === '*' ? '×' : op === '/' ? '÷' : op }]) }} className="bg-slate-700 hover:bg-blue-600 text-blue-100 border border-slate-600 border-b-4 hover:border-blue-800 active:border-b-0 active:translate-y-1 font-black py-4 rounded-xl text-2xl transition-all shadow-md">{op === '*' ? '×' : op === '/' ? '÷' : op}</button> ))}
+                                            <button onClick={() => { playSound('click'); if(expression.length === 0) return; const last = expression[expression.length - 1]; if (last.type === 'num') { setUsedCardIndices(prev => { const newArr = [...prev]; newArr.pop(); return newArr; }); } setExpression(expression.slice(0, -1)); }} className="bg-yellow-600/80 hover:bg-yellow-600 text-yellow-100 border-b-4 border-yellow-800 active:border-b-0 active:translate-y-1 font-bold py-4 rounded-xl text-xl transition-all shadow-md">←</button>
+                                            <button onClick={() => { playSound('click'); setExpression([]); setUsedCardIndices([]); }} className="bg-red-600/80 hover:bg-red-600 text-red-100 border-b-4 border-red-800 active:border-b-0 active:translate-y-1 font-bold py-4 rounded-xl text-xl transition-all shadow-md">C</button>
                                         </div>
                                         <button onClick={submitAnswer} disabled={expression.length === 0} className="w-full bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-white font-black py-5 rounded-2xl text-2xl shadow-lg hover:shadow-green-500/30 border-2 border-green-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">確認提交 (= 24)</button>
                                     </div>
