@@ -1,1917 +1,856 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>因式分解</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"/>
-    <link rel="stylesheet" href="style.css">
-    <!-- FontAweome CDN Link for Icons -->
-    <script
-  			src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-  	<script src='https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML'></script>
-  	<script type="text/x-mathjax-config">
-  		MathJax.Hub.Config({
-  			tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]}
-  		});
-  	</script>
+    <title>數24 錦標賽 (Math 24 Esports)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Babel for JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Custom Scrollbar Style -->
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(71, 85, 105, 0.8);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 116, 139, 1);
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(1.3); opacity: 0; }
+        }
+        @keyframes stamp-in {
+            0% { transform: scale(3); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-stamp {
+            animation: stamp-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes pop-in {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
 
+    <!-- Import Map for React & Firebase modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+            "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+            "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"
+        }
+    }
+    </script>
 </head>
+<body class="bg-slate-950 text-slate-100 min-h-screen overflow-x-hidden">
+    <div id="root"></div>
 
-<body>
-  <!-- user login -->
-  <div id="loginForm" class="loginForm">
-        <h1>Welcome！</h1>
-        <div class="form" method="post" style="padding-top: 20px;">
-          <div>
-            <div style="margin-bottom: 10px;">
-                <label class="class_selector">選擇你的班別</label>
-                <br>
-                <select class="classBtn" id="class">
-                    <option value="" disabled selected>班別</option>
-                    <option value="T">Teacher</option>
-                    <option value="1A">1A</option><option value="1B">1B</option><option value="1C">1C</option><option value="1D">1D</option><option value="1M">1M</option>
-                    <option value="2A">2A</option><option value="2B">2B</option><option value="2C">2C</option><option value="2D">2D</option><option value="2M">2M</option>
-                    <option value="3A">3A</option><option value="3B">3B</option><option value="3C">3C</option><option value="3D">3D</option><option value="3M">3M</option>
-                    <option value="4A">4A</option><option value="4B">4B</option><option value="4C">4C</option><option value="4D">4D</option>
-                    <option value="5A">5A</option><option value="5B">5B</option><option value="5C">5C</option><option value="5D">5D</option>
-                    <option value="6A">6A</option><option value="6B">6B</option><option value="6C">6C</option><option value="6D">6D</option>
-                </select>
-            </div>
-            <div>
+    <!-- 注意這裡加入了 type="text/babel" 和 data-type="module" 以支援 JSX 和 Imports -->
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef, useCallback } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { initializeApp } from 'firebase/app';
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            onAuthStateChanged,
+            signInWithCustomToken 
+        } from 'firebase/auth';
+        import { 
+            getFirestore, 
+            collection, 
+            doc, 
+            setDoc, 
+            updateDoc, 
+            onSnapshot, 
+            increment, 
+            deleteDoc, 
+            serverTimestamp,
+            arrayUnion 
+        } from 'firebase/firestore';
 
-                <label class="class_selector">選擇你的學號</label>
-                <br>
-                <select class="classNoBtn" id="classNo">
-                    <option value="" disabled selected>學號</option>
-                    <option value="0">00</option><option value="1">01</option><option value="2">02</option><option value="3">03</option><option value="4">04</option>
-                    <option value="5">05</option><option value="6">06</option><option value="7">07</option><option value="8">08</option><option value="9">09</option>
-                    <option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option>
-                    <option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option>
-                    <option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option>
-                    <option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option>
-                    <option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option>
-                </select>
-            </div>
-          </div>
-          <div class="txt_field">
-            <input id="loginPw" type="password">
-            <span></span>
-            <label>在此輸入密碼</label>
-          </div>
-          <button class="loginBtn" id="loginBtn">確定</button>
-        </div>
-      </div>
+        // --- Icons (Inlined for single-file stability) ---
+        const Icon = ({ path, className, fill = "none" }) => (
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="24" height="24" 
+                viewBox="0 0 24 24" 
+                fill={fill} stroke="currentColor" 
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" 
+                className={className}
+            >
+                {path}
+            </svg>
+        );
 
-  <!-- user select mode -->
-  <div id="modeOption" class="modeOption">
-    <button id="exerciseBtn" class="exerciseModeBtn" disabled = "true"><i class="fa fa-pencil-square-o"></i> 日常練習</button>
-    <br>
-    <button id="challengeBtn" class="chanllengeModeBtn"><i class="fa fa-trophy"></i> 限時挑戰 </button>
-  </div>
+        const LucideGamepad2 = (props) => <Icon {...props} path={<><line x1="6" x2="10" y1="12" y2="12"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="15" x2="15.01" y1="13" y2="13"/><line x1="18" x2="18.01" y1="11" y2="11"/><rect width="20" height="12" x="2" y="6" rx="2"/></>} />;
+        const LucideUsers = (props) => <Icon {...props} path={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>} />;
+        const LucideTimer = (props) => <Icon {...props} path={<><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></>} />;
+        const LucideCalculator = (props) => <Icon {...props} path={<><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></>} />;
+        const LucideTrophy = (props) => <Icon {...props} path={<><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></>} />;
+        const LucideXCircle = (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></>} />;
+        const LucideCheckCircle = (props) => <Icon {...props} path={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} />;
+        const LucidePlay = (props) => <Icon {...props} path={<><polygon points="6 3 20 12 6 21 6 3"/></>} />;
+        const LucideCrown = (props) => <Icon {...props} fill="currentColor" path={<><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/></>} />;
+        const LucideZap = (props) => <Icon {...props} fill="currentColor" path={<><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></>} />;
+        const LucideHistory = (props) => <Icon {...props} path={<><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></>} />;
 
-  <!-- user select topic in exercise mode -->
-  <div id="exerciseList" class="exerciseList">
-      <h3 style="margin-left: 20px; margin-top: 20px;">程度及課題</h3>
-      <p style="margin-bottom: 20px;">_______________________________________</p>
-          <select id="levelSelect" class="levelSelect" onchange="setTopicSelection()">
-            <option value="" disabled selected>選擇程度</option>
-            <option value="1">中一級</option>
-            <option value="2">中二級</option>
-            <option value="3">中三級</option>
-            <option value="4">中四級</option>
-            <option value="5">中五級</option>
-            <option value="6">中六級</option>
-          </select>
-          <br>
-          <select id="TopicSelect" class="TopicSelect" style="display:none;"></select>
-      <button class="TopicSelectBtn" id="backToModeOptionBtn" onclick="backToModeSelection()">返回</button>
-      <button class="TopicSelectBtn" id="TopicSelectBtn">確定</button>
+        // --- Firebase Configuration ---
+        const defaultFirebaseConfig = {
+            apiKey: "AIzaSyCqY2j1mjd7TmSNz7KuaNcHNU_ED9zBNHw",
+            authDomain: "math24-60417.firebaseapp.com",
+            databaseURL: "https://math24-60417-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "math24-60417",
+            storageBucket: "math24-60417.firebasestorage.app",
+            messagingSenderId: "56193320606",
+            appId: "1:56193320606:web:f8636a4e6bad5cc2131d8f",
+            measurementId: "G-WM1S25FH4W"
+        };
+        
+        let firebaseConfig;
+        if (typeof __firebase_config !== 'undefined') {
+             firebaseConfig = JSON.parse(__firebase_config);
+        } else {
+             firebaseConfig = defaultFirebaseConfig;
+        }
 
-  </div>
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-  <!-- user select topic in chanllenge mode -->
-  <div id="chanllengeList" class="chanllengeList">
-    <h3 style="margin-left: 20px; margin-top: 20px;">程度及課題</h3>
-    <p style="margin-bottom: 20px;">_______________________________________</p>
-        <select id="levelSelect_cha" class="levelSelect_cha" onchange="setChaTopicSelection()">
-          <option value="0" disabled selected>選擇程度</option>
-          <option value="1">中一級</option>
-          <option value="2">中二級</option>
-          <option value="3">中三級</option>
-          <option value="4">中四級</option>
-          <option value="5">中五級</option>
-          <option value="6">中六級</option>
-        </select>
-        <br>
-        <select id="chaTopicSelect" class="chaTopicSelect" style="display:none;" onchange="setChaTopicSectionSelection()"></select>
-        <br>
-        <select id="chaTopicSectionSelect" class="chaTopicSectionSelect" style="display:none;"></select>
-        <button class="TopicSelectBtn" id="backToModeOptionBtn" onclick="backToModeSelection()">返回</button>
-        <button class="chaTopicSelectBtn" id="chaTopicSelectBtn" onclick="showInfoBox()">確定</button>
-  </div>
+        // --- Game Logic ---
+        const SUITS = ['♠', '♥', '♣', '♦'];
+        const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+        const VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
-  <div id="info_box" class="info_box">
-      <div class="info-title"><span>規則說明</span></div>
-      <div class="info-list">
-          <div class="info">一. 本挑戰共有<span id="numOfQues"> 5分鐘 </span>條問題。</div>
-          <div class="info">二. 整個挑戰的限時為<span id="quizTimeLimit"> 5分鐘 </span>。</div>
-          <div class="info">三. 一旦選擇了答案，便無法作出更改。</div>
-          <div class="info">四. 超過時限後，你便無法回答任何問題。</div>
-          <!-- <div class="info">五. 選擇難度： <select id="difficulty">
-            <option value="1">初階</option>
-            <option value="2">中階</option>
-            <option value="3">進階</option></select>
-          </div> -->
-      </div>
-      <div class="buttons">
-          <button id="quitChaBtn" class="quit">離開</button>
-          <button id="startChaBtn" class="restart">開始挑戰</button>
-      </div>
-  </div>
+        const SOUND_URLS = {
+            start: 'https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.m4a', 
+            tick: 'https://assets.mixkit.co/active_storage/sfx/2587/2587-preview.m4a',
+            buzz: 'https://assets.mixkit.co/active_storage/sfx/2863/2863-preview.m4a',
+            correct: 'https://assets.mixkit.co/active_storage/sfx/270/270-preview.m4a',
+            wrong: 'https://assets.mixkit.co/active_storage/sfx/2880/2880-preview.m4a',
+        };
 
-  <div id="mcQuizBox" class="quiz_box">
-      <header>
-          <div class="title">限時挑戰</div>
-          <div class="timer">
-              <div class="time_left_txt">剩餘時間</div>
-              <div id="timer" class="timer_sec">_ _:_ _</div>
-          </div>
-          <div class="time_line"></div>
-      </header>
-      <section>
-          <div class="que_img">
-            <!-- Here I've inserted question figure from JavaScript -->
-          </div>
-          <div class="que_text">
-              <!-- Here I've inserted question from JavaScript -->
-          </div>
-          <div class="option_list">
-              <!-- Here I've inserted options from JavaScript -->
-          </div>
-          <div class="answerInputBox">
-          </div>
-          <div class="input_respon" id="inputRespon">
-          </div>
-      </section>
+        const useAudio = () => {
+            const audioRefs = useRef({});
+            useEffect(() => {
+                Object.keys(SOUND_URLS).forEach(key => {
+                    audioRefs.current[key] = new Audio(SOUND_URLS[key]);
+                    audioRefs.current[key].volume = 0.5;
+                });
+            }, []);
+            const playSound = useCallback((soundName) => {
+                const audio = audioRefs.current[soundName];
+                if (audio) {
+                    audio.currentTime = 0;
+                    audio.play().catch(e => console.log("Audio play prevented:", e));
+                }
+            }, []);
+            return playSound;
+        };
 
-      <!-- footer of Quiz Box -->
-      <footer>
-        <button class="submitAnswer_btn" onclick="submitAnswer()">提交</button>
-        <button class="next_btn" onclick="nextQuestionBtn()">下一題</button>
-      </footer>
-
-  </div>
-
-  <div id="resultBox" class="result_box">
-      <div class="icon">
-          <i class="fas fa-crown"></i>
-      </div>
-      <div class="complete_text"><b>你已完成本測驗！</b></div>
-      <div class="score">
-          你答對了 <span id="quizQuestionNum"></span>題中的 <span id="quizScore">0</span>題。
-      </div>
-      <div class="buttons">
-          <button onclick="logout()" class="quit">離開</button>
-      </div>
-  </div>
-
-  <script src="simpleEquation.js"></script>
-  <script src="identityExpansion.js"></script>
-  <script src="simpleFactorization.js"></script>
-  <script src="factorization.js"></script>
-  <script src="polynomialOperation.js"></script>
-
-  <script>
-
-    //--------------Student List-------------//
-    const students_2D = [
-      {
-        numb: 3,
-        name: "周暻寧",
-        pw: "xpq2p3",
-      },
-      {
-        numb: 4,
-        name: "鄭汶臻",
-        pw: "0jlg4w",
-      },
-      {
-        numb: 5,
-        name: "詹承晉",
-        pw: "z43qob",
-      },
-      {
-        numb: 7,
-        name: "李俊華",
-        pw: "sih36q",
-      },
-      {
-        numb: 8,
-        name: "李佩欣",
-        pw: "xza7m1",
-      },
-      {
-        numb: 9,
-        name: "利泳熙",
-        pw: "nrl4fg",
-      },
-      {
-        numb: 10,
-        name: "梁凱茵",
-        pw: "9kdmiw",
-      },
-      {
-        numb: 11,
-        name: "梁樂天",
-        pw: "qbl6lx",
-      },
-      {
-        numb: 12,
-        name: "梁心賢",
-        pw: "27i0m7",
-      },
-      {
-        numb: 13,
-        name: "李傑豪",
-        pw: "os381j",
-      },
-      {
-        numb: 14,
-        name: "盧柏希",
-        pw: "vg1n6q",
-      },
-      {
-        numb: 16,
-        name: "吳晞瑜",
-        pw: "60ff1n",
-      },
-      {
-        numb: 19,
-        name: "施澤棟",
-        pw: "1laqbb",
-      },
-      {
-        numb: 20,
-        name: "杜郁雄",
-        pw: "396d5d",
-      },
-      {
-        numb: 21,
-        name: "謝俊闈",
-        pw: "2bupmf",
-      },
-      {
-        numb: 22,
-        name: "王家濠",
-        pw: "9yryag",
-      },
-      {
-        numb: 23,
-        name: "王藝泓",
-        pw: "ju8rl1",
-      },
-      {
-        numb: 24,
-        name: "黃子澄",
-        pw: "35m3x1",
-      },
-      {
-        numb: 25,
-        name: "邱鈞暘",
-        pw: "yku0ux",
-      },
-      {
-        numb: 26,
-        name: "葉肇熙",
-        pw: "gnex6h",
-      },
-    ];
-    const students_T = [
-      {
-        numb: 0,
-        name: "Lee Kwong Choi",
-        pw: "12313",
-      },
-    ];
-
-    //---------------Topic List-----------------//
-    const topiclist = [
-      {
-        level: 1,
-        chapterNo : 0,
-        topic: "基礎算術重溫",
-        section: ["算術運算", "最小公倍數和最大公因數", "分數和小數", "分數和小數的運算"],
-      },
-      {
-        level: 1,
-        chapterNo : 1,
-        topic: "基礎數學",
-        section: ["續最大公因數和最小公倍數","續算術運算","整除性的判別方法"],
-      },
-      {
-        level: 1,
-        chapterNo : 2,
-        topic: "有向數及數線",
-        section: ["有向數的概念","有向數的加法和減法","有向數的乘法和除法","有向數的四則混合運算",],
-      },
-      {
-        level: 1,
-        chapterNo : 3,
-        topic: "代數簡介",
-        section: ["代數語言","公式和代入法","數列"],
-      },
-      {
-        level: 1,
-        chapterNo : 4,
-        topic: "一元一次方程",
-        section: ["一元一次方程","解方程的進一步技巧","一元一次方程的應用"],
-      },
-      {
-        level: 1,
-        chapterNo : 5,
-        topic: "幾何簡介",
-        section: ["幾何學的基本概念","平面圖形","基本作圖","立體圖形",]
-      },
-      {
-        level: 1,
-        chapterNo : 6,
-        topic: "統計學與統計圖表簡介",
-        section: ["統計學的簡介","簡單的統計圖表","幹葉圖"],
-      },
-      {
-        level: 1,
-        chapterNo : 7,
-        topic: "百分法(一)",
-        section: ["簡閉百分數問題","百分變化","盈利和虧蝕","折扣"],
-      },
-      {
-        level: 1,
-        chapterNo : 8,
-        topic: "近似值與數值估算",
-        section: ["近似值","數值估算"],
-      },
-      {
-        level: 1,
-        chapterNo : 9,
-        topic: "面積與體積(一)",
-        section: ["重溫多邊形的面積","角柱的體積和總表面面積"],
-      },
-      {
-        level: 1,
-        chapterNo : 10,
-        topic: "簡易多項式的運算",
-        section: ["正整數指數定律","多項式","多項式的加法和減法","多項式的乘法"],
-      },
-      {
-        level: 1,
-        chapterNo : 11,
-        topic: "與線相關的角",
-        section: ["與相交線相關的角","與平行線相關的角","平行線的判定"],
-      },
-      {
-        level: 1,
-        chapterNo : 12,
-        topic: "坐標簡介",
-        section: ["直角坐標系統","兩點之間的距離","平面圖形的面積","在直角坐標平面上點的變換"],
-      },
-      {
-        level: 2,
-        chapterNo : 1,
-        topic: "量度的誤差",
-      },
-      {
-        level: 2,
-        chapterNo : 2,
-        topic: "恆等式及因式分解",
-      },
-      {
-        level: 2,
-        chapterNo : 3,
-        topic: "代數分式與公式",
-      },
-      {
-        level: 2,
-        chapterNo : 4,
-        topic: "與直線圖形相關的角",
-      },
-      {
-        level: 2,
-        chapterNo : 5,
-        topic: "全等",
-      },
-      {
-        level: 2,
-        chapterNo : 6,
-        topic: "續統計圖表",
-      },
-      {
-        level: 2,
-        chapterNo : 7,
-        topic: "率, 比及比例",
-      },
-      {
-        level: 2,
-        chapterNo : 8,
-        topic: "相似",
-      },
-      {
-        level: 2,
-        chapterNo : 9,
-        topic: "二元一次方程",
-      },
-      {
-        level: 2,
-        chapterNo : 10,
-        topic: "畢氏定理與無理數",
-      },
-      {
-        level: 2,
-        chapterNo : 11,
-        topic: "面積與體積(二)",
-      },
-      {
-        level: 2,
-        chapterNo : 12,
-        topic: "三角比",
-      },
-      {
-        level: 3,
-        chapterNo : 1,
-        topic: "續多項式的因式分解",
-      },
-      {
-        level: 3,
-        chapterNo : 2,
-        topic: "一元一次不等式",
-      },
-      {
-        level: 3,
-        chapterNo : 3,
-        topic: "百分法(二)",
-      },
-      {
-        level: 3,
-        chapterNo : 4,
-        topic: "三角形的一些特殊的線和中心",
-      },
-      {
-        level: 3,
-        chapterNo : 5,
-        topic: "四邊形",
-      },
-      {
-        level: 3,
-        chapterNo : 6,
-        topic: "續立體圖形",
-      },
-      {
-        level: 3,
-        chapterNo : 7,
-        topic: "面積和體積(三)",
-      },
-      {
-        level: 3,
-        chapterNo : 8,
-        topic: "直線的坐標幾何",
-      },
-      {
-        level: 3,
-        chapterNo : 9,
-        topic: "三角比的關係",
-      },
-      {
-        level: 3,
-        chapterNo : 10,
-        topic: "三角的應用",
-      },
-      {
-        level: 3,
-        chapterNo : 11,
-        topic: "集中趨勢的量度",
-      },
-      {
-        level: 3,
-        chapterNo : 12,
-        topic: "概率簡介",
-      },
-    ];
-
-    const avalibleChanllengeList = [
-      {
-        level: 1,
-        chapterNo: 4,
-        topic: "一元一次方程",
-        section: ["簡易一元一次方程", "解方程的進一步技巧"],
-      },
-      {
-        level: 1,
-        chapterNo: 10,
-        topic: "簡易多項式的運算",
-        section: ["正整數指數定律", "多項式的加法和減法", "多項式的乘法"],
-      },
-      {
-        level: 2,
-        chapterNo: 2,
-        topic: "恆等式及因式分解",
-        section: ["恆等式展開(平方差)", "恆等式展開(完全平方)"  ,"簡易因式分解(提取公因式)", "簡易因式分解(拼項法)", "恆等式因式分解(平方差)", "恆等式因式分解(完全平方)" , "恆等式展開(總複習)", "簡易因式分解(總複習)", "恆等式因式分解(總複習)"],
-      },
-      {
-        level: 2,
-        chapterNo: 3,
-        topic: "代數分式與公式",
-        section: ["簡單代數分式的運算", "公式及代入法", "主項變換"],
-      },
-      {
-        level: 2,
-        chapterNo: 9,
-        topic: "二元一次方程",
-        section: ["解聯立二元一次方程(代入消元法)", "解聯立二元一次方程(加減消元法)"],
-      },
-      {
-        level: 3,
-        chapterNo: 1,
-        topic: "續多項式的因式分解",
-        section: ["十字相乘法(一)", "十字相乘法(二)", "十字相乘法(三)" ,"較複雜的因式分解"],
-      },
-      {
-        level: 3,
-        chapterNo: 2,
-        topic: "整數指數律",
-        section: ["正整數指數律", "零指數和負整數指數"],
-      },
-      {
-        level: 3,
-        chapterNo: 3,
-        topic: "解一元一次不等式",
-        section: ["解一元一次不等式"],
-      }
-    ];
-    //-------------------------------------Interface References-------------------------------------//
-    var loginBtn = document.getElementById("loginBtn");
-    var exerciseBtn = document.getElementById("exerciseBtn");
-    var challengeBtn = document.getElementById("challengeBtn");
-    var startChaBtn = document.getElementById("startChaBtn");
-    var quizTimeLimit = document.getElementById("quizTimeLimit");
-    var questionNum = document.getElementById("numOfQues");
-    var quizQuestionNum = document.getElementById("quizQuestionNum");
-    var score = document.getElementById("quizScore");
-    var timeAllowed = 0;
-    const option_list = document.querySelector(".option_list");
-    const submitAnswer_btn = document.querySelector(".submitAnswer_btn");
-    const next_btn = document.querySelector("footer .next_btn");
-    const inputRespon = document.querySelector(".input_respon");
-
-    //-------------------------------------Assign Events to buttons-------------------------------------//
-    loginBtn.addEventListener('click', login);
-    exerciseBtn.addEventListener('click', exerciseMode);
-    challengeBtn.addEventListener('click', challengeMode);
-    startChaBtn.addEventListener('click', startChallengeQuiz);
-
-    //--------------------------quiz details reference-----------------//
-    var quizDetail;
-    var que_count = 0;
-    var userScore = 0;
-    var mode = "";
-
-    //------------------------login function-----------------------//
-    function login(){
-      var inputClass = document.getElementById("class").value;
-      var inputClassNumber = document.getElementById("classNo").value;
-      var inputPassword = document.getElementById("loginPw").value;
-      if(inputClass==""||inputClassNumber==""){
-        alert("請先選擇班別及學號");
-      }else{
-          for(var i=0; i<eval("students_" + inputClass).length; i++){
-            if(eval("students_" + inputClass)[i].numb == inputClassNumber){
-              if(eval("students_" + inputClass)[i].pw == inputPassword){
-                document.getElementById("loginForm").style.display = "none";
-                document.getElementById("modeOption").style.display = "block";
-              }else{
-                alert("密碼錯誤")
-              }
-              break;
-            }else if((i+1)==eval("students_" + inputClass).length){
-              alert("此用戶不存在")
+        const generateDeck = () => {
+            const deck = [];
+            for (let i = 0; i < 52; i++) deck.push(i);
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
             }
-          }
-      }
+            return deck;
+        };
 
-    }
+        const getCardDetails = (cardId) => {
+            if (cardId === null || cardId === undefined) return { rank: '?', suit: '?', value: 0, color: 'black' };
+            const suitIndex = Math.floor(cardId / 13);
+            const rankIndex = cardId % 13;
+            return {
+                rank: RANKS[rankIndex],
+                suit: SUITS[suitIndex],
+                value: VALUES[rankIndex],
+                color: (suitIndex === 1 || suitIndex === 3) ? 'text-red-600' : 'text-slate-900',
+                fullLabel: `${SUITS[suitIndex]}${RANKS[rankIndex]}`
+            };
+        };
 
-    //----------------------User select mode (exercise or challenge)---------------------//
-    function exerciseMode(){
-        document.getElementById("modeOption").style.display="none";
-        document.getElementById("exerciseList").style.display="block";
-    }
+        const evaluateExpression = (expr) => {
+            try {
+                if (/[^0-9+\-*/().\s]/.test(expr)) return null;
+                const result = Function(`"use strict"; return (${expr})`)();
+                return result;
+            } catch (e) { return null; }
+        };
 
-    function challengeMode(){
-        document.getElementById("modeOption").style.display="none";
-        document.getElementById("chanllengeList").style.display="block";
-    }
+        // Helper to format text for display
+        const formatToken = (text) => {
+            if (text === '*') return '×';
+            if (text === '/') return '÷';
+            return text;
+        };
 
-    function backToModeSelection(){
-      document.getElementById("modeOption").style.display="block";
-      document.getElementById("chanllengeList").style.display="none";
-      document.getElementById("exerciseList").style.display="none";
-    }
+        // --- Result Animation Component ---
+        const RoundResultOverlay = ({ result }) => {
+            const [showTokens, setShowTokens] = useState([]);
+            
+            useEffect(() => {
+                if (!result || !result.expression) return;
+                const tokens = result.expression.split(' ');
+                let current = 0;
+                
+                const interval = setInterval(() => {
+                    if (current < tokens.length) {
+                        setShowTokens(prev => [...prev, tokens[current]]);
+                        current++;
+                    } else {
+                        clearInterval(interval);
+                    }
+                }, 300); 
 
-    //----------------------User select level and topic------------------------------//
-    function setTopicSelection(){
-      document.getElementById("TopicSelect").innerHTML = '<option value="0" disabled selected>選擇課題</option>';
-      for(var i=0; i<topiclist.length; i++){
-        if(document.getElementById("levelSelect").value==topiclist[i].level)
-        document.getElementById("TopicSelect").innerHTML = document.getElementById("TopicSelect").innerHTML + '<option value="' + topiclist[i].chapterNo + '">' + "第 " +  topiclist[i].chapterNo + " 章 - " + topiclist[i].topic + '</option>';
-      }
-      document.getElementById("TopicSelect").style.display = "block";
-    }
+                return () => clearInterval(interval);
+            }, [result]);
 
-    function setChaTopicSelection(){
-      document.getElementById("chaTopicSelect").innerHTML = '<option value="0" disabled selected>選擇課題</option>';
-      for(var i=0; i<avalibleChanllengeList.length; i++){
-        if(document.getElementById("levelSelect_cha").value==avalibleChanllengeList[i].level)
-        document.getElementById("chaTopicSelect").innerHTML = document.getElementById("chaTopicSelect").innerHTML + '<option value="' + avalibleChanllengeList[i].chapterNo + '">' + "第 " +  avalibleChanllengeList[i].chapterNo + " 章 - " + avalibleChanllengeList[i].topic + '</option>';
-      }
-      document.getElementById("chaTopicSelect").style.display = "block";
-      document.getElementById("chaTopicSectionSelect").style.display = "none";
-    }
+            if (!result) return null;
 
-    function setChaTopicSectionSelection(){
-      document.getElementById("chaTopicSectionSelect").innerHTML = '<option value="0" disabled selected>選擇內容</option>';
-      for(var i=0; i<avalibleChanllengeList.length; i++){
-        if(document.getElementById("levelSelect_cha").value==avalibleChanllengeList[i].level && document.getElementById("chaTopicSelect").value==avalibleChanllengeList[i].chapterNo){
-          for(var j=0; j<avalibleChanllengeList[i].section.length; j++){
-            document.getElementById("chaTopicSectionSelect").innerHTML = document.getElementById("chaTopicSectionSelect").innerHTML + '<option value="' + (j+1) + '">' + avalibleChanllengeList[i].section[j] + '</option>';
-          }
-        }
-      }
-      document.getElementById("chaTopicSectionSelect").style.display = "block";
-    }
+            return (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="text-center">
+                        <h2 className="text-3xl font-black italic text-blue-300 mb-8 tracking-widest uppercase drop-shadow-lg">
+                            {result.result === 'Success' ? '精彩重播' : '回合結束'}
+                        </h2>
+                        
+                        <div className="flex gap-4 mb-10 justify-center">
+                            {result.cards && result.cards.map((c, i) => {
+                                 const { rank, suit, color } = getCardDetails(c);
+                                 const isRed = color.includes('red');
+                                 return (
+                                     <div key={i} className={`
+                                        w-16 h-24 bg-white rounded-lg shadow-xl flex flex-col items-center justify-center text-3xl font-serif
+                                        ${isRed ? 'text-red-600' : 'text-slate-900'}
+                                        animate-[pop-in_0.5s_ease-out_forwards]
+                                     `} style={{ animationDelay: `${i * 0.1}s` }}>
+                                         <div className="text-sm absolute top-1 left-1">{rank}</div>
+                                         {suit}
+                                     </div>
+                                 )
+                            })}
+                        </div>
 
-    //-----------------------show info box ------------------------//
-    function showInfoBox(){
-      var quizLevel = document.querySelector('#levelSelect_cha').value;
-      var quizChapter = document.querySelector('#chaTopicSelect').value;
-      var quizSection = document.querySelector('#chaTopicSectionSelect').value;
-      if(quizLevel=="0"){
-        alert("請先選擇程度");
-      }else if(quizChapter=="0"){
-        alert("請先選擇課題");
-      }else if(quizSection=="0"){
-        alert("請先選擇內容");
-      }else{
-        document.getElementById("info_box").style.display = "block";
-        document.getElementById("chanllengeList").style.display = "none";
-        getQuizDetails(quizLevel, quizChapter, quizSection);
-      }
-    }
+                        <div className="text-xl text-slate-400 mb-4 font-bold">
+                            {result.playerName}
+                        </div>
 
-    function showMCQuizBox(){
-      document.getElementById("info_box").style.display = "none";
-      document.getElementById("mcQuizBox").style.display = "block";
-    }
+                        {result.result === 'Impossible' ? (
+                             <div className="text-4xl font-mono text-slate-500 font-bold mb-8">無解 (No Solution)</div>
+                        ) : result.result === 'RoundTimeout' ? (
+                             <div className="text-4xl font-mono text-slate-500 font-bold mb-8">時間到 (Time Up)</div>
+                        ) : (
+                             <div className="h-16 flex items-center justify-center flex-wrap gap-2 mb-8 max-w-4xl px-4">
+                                 {showTokens.map((t, i) => {
+                                     // Determine if token is operator or number for styling to match input interface
+                                     const isOp = ['+', '-', '*', '×', '/', '÷', '(', ')'].includes(formatToken(t));
+                                     return (
+                                         <span key={i} className={`
+                                            px-3 py-1 rounded-lg shadow-lg border-2 text-2xl md:text-3xl font-black font-mono animate-[pop-in_0.2s_ease-out]
+                                            ${isOp 
+                                                ? 'bg-blue-900/80 text-blue-300 border-blue-700' 
+                                                : 'bg-slate-200 text-slate-900 border-slate-400 font-serif'}
+                                         `}>
+                                             {formatToken(t)}
+                                         </span>
+                                     )
+                                 })}
+                                 {showTokens.length === result.expression.split(' ').length && (
+                                     <span className="text-3xl md:text-4xl font-black text-yellow-400 animate-[pop-in_0.2s_ease-out_0.2s_forwards] opacity-0 ml-2 mt-1">
+                                         = 24
+                                     </span>
+                                 )}
+                             </div>
+                        )}
 
-    //------------------------------start chanllenge quiz------------------------//
-    function startChallengeQuiz(){
-      showMCQuizBox();
-      startTimer(timeAllowed*60, document.querySelector('#timer'));
-    }
+                        <div className="relative h-24 flex items-center justify-center">
+                             {result.result === 'Success' && (
+                                 <div className="text-6xl font-black text-green-500 border-8 border-green-500 rounded-xl px-8 py-2 -rotate-12 animate-stamp drop-shadow-[0_0_20px_rgba(34,197,94,0.6)]">
+                                     CORRECT
+                                 </div>
+                             )}
+                             {(result.result === 'Wrong' || result.result === 'Timeout') && (
+                                 <div className="text-6xl font-black text-red-500 border-8 border-red-500 rounded-xl px-8 py-2 rotate-12 animate-stamp drop-shadow-[0_0_20px_rgba(239,68,68,0.6)]">
+                                     FAIL
+                                 </div>
+                             )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
 
-    //------------------------get question details---------------------//
-    function getQuizDetails(level, chapter, section){
-      quizDetail = eval("getLv" + level + "Ch" + chapter + "Sec" + section + "()");
-      showQuestions(que_count);
-    }
+        // --- Main Component ---
+        function Math24Game() {
+            const [user, setUser] = useState(null);
+            const [userName, setUserName] = useState('');
+            const [currentView, setCurrentView] = useState('login');
+            const [roomId, setRoomId] = useState(null);
+            const [roomList, setRoomList] = useState([]);
+            const [roomData, setRoomData] = useState(null);
+            
+            // Ref to track latest roomData for closure access
+            const roomDataRef = useRef(null);
+            
+            const [expression, setExpression] = useState([]);
+            const [usedCardIndices, setUsedCardIndices] = useState([]);
+            const [timeLeft, setTimeLeft] = useState(0);
+            const [totalTime, setTotalTime] = useState(60);
 
-    //--------------------get question details from script------------------//
-    //Form 1 Chapter 4 Section 1 - Solving Simple Linear Equation
-    function getLv1Ch4Sec1(){
-      mode = "input";
-      timeAllowed = 8;
-      var question1Info = simpleEquationType1();
-      var question2Info = simpleEquationType2();
-      var question3Info = simpleEquationType3();
-      var question4Info = simpleEquationType4();
-      var question5Info = simpleEquationType5();
-      var question6Info = simpleEquationType6();
-      var question7Info = simpleEquationType7();
-      var question8Info = simpleEquationType8();
+            const playSound = useAudio();
+            const lastPlayedTickRef = useRef(null);
 
-      let questionForQuiz = [
-          {
-          numb: 1,
-          question: "解以下方程：" + question1Info.question,
-          answer: question1Info.answer,
-          numerator: question1Info.numerator,
-          denominator: question1Info.denominator,
-        },
-          {
-          numb: 2,
-          question: "解以下方程：" + question2Info.question,
-          answer: question2Info.answer,
-          numerator: question2Info.numerator,
-          denominator: question2Info.denominator,
-        },
-          {
-          numb: 3,
-          question: "解以下方程：" + question3Info.question,
-          answer: question3Info.answer,
-          numerator: question3Info.numerator,
-          denominator: question3Info.denominator,
-        },
-          {
-          numb: 4,
-          question: "解以下方程：" + question4Info.question,
-          answer: question4Info.answer,
-          numerator: question4Info.numerator,
-          denominator: question4Info.denominator,
-        },
-          {
-          numb: 5,
-          question: "解以下方程：" + question5Info.question,
-          answer: question5Info.answer,
-          numerator: question5Info.numerator,
-          denominator: question5Info.denominator,
-        },
-          {
-          numb: 6,
-          question: "解以下方程：" + question6Info.question,
-          answer: question6Info.answer,
-          numerator: question6Info.numerator,
-          denominator: question6Info.denominator,
-        },
-          {
-          numb: 7,
-          question: "解以下方程：" + question7Info.question,
-          answer: question7Info.answer,
-          numerator: question7Info.numerator,
-          denominator: question7Info.denominator,
-        },
-        {
-        numb: 8,
-        question: "解以下方程：" + question8Info.question,
-        answer: question8Info.answer,
-        numerator: question8Info.numerator,
-        denominator: question8Info.denominator,
-        },
-      ];
-      quizQuestionNum.innerHTML = " " + questionForQuiz.length + " ";
-      questionNum.innerHTML = " " + questionForQuiz.length + " ";
-      quizTimeLimit.innerHTML = " 8 分鐘 ";
+            // Auth
+            useEffect(() => {
+                const initAuth = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                };
+                initAuth();
+                onAuthStateChanged(auth, setUser);
+            }, []);
 
-      return questionForQuiz;
-    }
+            // Room List
+            useEffect(() => {
+                if (!user || currentView !== 'lobby') return;
+                const roomsRef = collection(db, 'artifacts', appId, 'public', 'data', 'math24_rooms');
+                const unsub = onSnapshot(roomsRef, (snapshot) => {
+                    const list = [];
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.status === 'lobby' && Object.keys(data.players || {}).length < 4) {
+                            list.push({ id: doc.id, ...data });
+                        }
+                    });
+                    setRoomList(list);
+                });
+                return () => unsub();
+            }, [user, currentView]);
 
-    //Form 1 Chapter 10 Section 2 - Polynomial Addition and Subtraction
-    function getLv1Ch10Sec2(){
-      mode = "option";
-      timeAllowed = 8;
-      var question1Info = polynomialAddSubType1();
-      var question2Info = polynomialAddSubType2();
-      var question3Info = polynomialAddSubType3();
-      var question4Info = polynomialAddSubType4();
+            // Room Sync
+            useEffect(() => {
+                if (!user || !roomId) return;
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
+                const unsub = onSnapshot(roomRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        setRoomData(data);
+                        roomDataRef.current = data; // Keep ref updated
 
-      let questionForQuiz = [
-          {
-          numb: 1,
-          question: "因式分解 " + question1Info.question + "。",
-          answer: question1Info.answer,
-          options: question1Info.option
-        },
-          {
-          numb: 2,
-          question: "因式分解 " + question2Info.question + "。",
-          answer: question2Info.answer,
-          options: question2Info.option
-        },
-          {
-          numb: 3,
-          question: "因式分解 " + question3Info.question + "。",
-          answer: question3Info.answer,
-          options: question3Info.option
-        },
-          {
-          numb: 4,
-          question: "因式分解 " + question4Info.question + "。",
-          answer: question4Info.answer,
-          options: question4Info.option
-        },
-        //   {
-        //   numb: 5,
-        //   question: "因式分解 " + question5Info.question + "。",
-        //   answer: question5Info.answer,
-        //   options: question5Info.option
-        // },
-        //   {
-        //   numb: 6,
-        //   question: "因式分解 " + question6Info.question + "。",
-        //   answer: question6Info.answer,
-        //   options: question6Info.option
-        // },
-        //   {
-        //   numb: 7,
-        //   question: "因式分解 " + question7Info.question + "。",
-        //   answer: question7Info.answer,
-        //   options: question7Info.option
-        // },
-        //   {
-        //   numb: 8,
-        //   question: "因式分解 " + question8Info.question + "。",
-        //   answer: question8Info.answer,
-        //   options: question8Info.option
-        // },
-      ];
+                        if (!data.players || !data.players[user.uid]) {
+                            alert('您已離開房間');
+                            setRoomId(null);
+                            setCurrentView('lobby');
+                            return;
+                        }
+                        handleTimerSync(data);
+                    } else {
+                        setRoomId(null);
+                        setCurrentView('lobby');
+                    }
+                });
+                return () => unsub();
+            }, [roomId, user]);
 
-        quizQuestionNum.innerHTML = " " + questionForQuiz.length + " ";
-        questionNum.innerHTML = " " + questionForQuiz.length + " ";
-        quizTimeLimit.innerHTML = " 8 分鐘 ";
+            // Audio Side Effects
+            useEffect(() => {
+                if (roomData?.status === 'playing') playSound('start');
+            }, [roomData?.status]);
 
-      return questionForQuiz;
-    }
+            useEffect(() => {
+                if (roomData?.gameState?.buzzerId) playSound('buzz');
+            }, [roomData?.gameState?.buzzerId]);
 
-    //Form 2 Chapter 2 Section 1 - Expansion - Difference of two Squares (DONE)
-    function getLv2Ch2Sec1(){
-      mode = "option";
-      timeAllowed = 6;
-      var getLv2Ch2Sec1InfoType1 = identityExpansionType1();
-      var getLv2Ch2Sec1InfoType2 = identityExpansionType2();
-      var getLv2Ch2Sec1InfoType3 = identityExpansionType3();
-      var getLv2Ch2Sec1InfoType4 = identityExpansionType4();
-      var getLv2Ch2Sec1InfoType5 = identityExpansionType5();
-      var getLv2Ch2Sec1InfoType6 = identityExpansionType6();
-      var getLv2Ch2Sec1InfoType7 = identityExpansionType7();
-      var getLv2Ch2Sec1InfoType8 = identityExpansionType8();
-      var getLv2Ch2Sec1InfoType9 = identityExpansionType9();
+            // Timer
+            const timerRef = useRef(null);
+            const handleTimerSync = (data) => {
+                if (timerRef.current) clearInterval(timerRef.current);
+                if (data.status === 'playing') {
+                    const isBuzzerPhase = !!data.gameState.buzzerId;
+                    setTotalTime(isBuzzerPhase ? 10 : 60);
+                    timerRef.current = setInterval(() => {
+                        const now = Date.now();
+                        let targetTime = isBuzzerPhase ? data.gameState.buzzerEndTime : data.gameState.roundEndTime;
+                        const diff = Math.max(0, Math.ceil((targetTime - now) / 1000));
+                        setTimeLeft(diff);
+                        if (diff > 0 && diff <= 10 && lastPlayedTickRef.current !== diff) {
+                            playSound('tick');
+                            lastPlayedTickRef.current = diff;
+                        }
+                        if (diff <= 0 && data.hostId === user.uid) {
+                           handleTimeOut(data); // Pass snapshot data
+                        }
+                    }, 1000);
+                }
+            };
+            
+            const handleTimeOut = async (data) => {
+                clearInterval(timerRef.current);
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
+                if (data.gameState.buzzerId) {
+                    playSound('wrong');
+                    await updateScoreAndNextRound(roomRef, data.gameState.buzzerId, -1, "超時未作答", "Timeout");
+                } else {
+                    // Round Timeout (nobody answered)
+                    // Need current data for this logic too
+                    const currentData = roomDataRef.current || data;
+                    const historyEntry = {
+                        round: currentData.gameState.round || 1,
+                        cards: currentData.gameState.currentCards,
+                        playerName: "-",
+                        expression: "Time Up",
+                        result: "RoundTimeout",
+                        timestamp: Date.now()
+                    };
+                    await updateDoc(roomRef, {
+                        'gameState.lastRoundResult': historyEntry,
+                        'gameState.history': arrayUnion(historyEntry),
+                        'status': 'resolving'
+                    });
+                    setTimeout(() => {
+                         const d = roomDataRef.current?.gameState?.deck || [];
+                         startNewRound(roomRef, d);
+                    }, 4000);
+                }
+            };
 
-      let Lv2Ch2Sec1Question = [
-          {
-          numb: 1,
-          question: "展開 " + getLv2Ch2Sec1InfoType1.question + "。",
-          answer: getLv2Ch2Sec1InfoType1.answer,
-          options: getLv2Ch2Sec1InfoType1.option
-        },
-          {
-          numb: 2,
-          question: "展開 " + getLv2Ch2Sec1InfoType2.question + "。",
-          answer: getLv2Ch2Sec1InfoType2.answer,
-          options: getLv2Ch2Sec1InfoType2.option
-        },
-          {
-          numb: 3,
-          question: "展開 " + getLv2Ch2Sec1InfoType3.question + "。",
-          answer: getLv2Ch2Sec1InfoType3.answer,
-          options: getLv2Ch2Sec1InfoType3.option
-        },
-          {
-          numb: 4,
-          question: "展開 " + getLv2Ch2Sec1InfoType4.question + "。",
-          answer: getLv2Ch2Sec1InfoType4.answer,
-          options: getLv2Ch2Sec1InfoType4.option
-        },
-          {
-          numb: 5,
-          question: "展開 " + getLv2Ch2Sec1InfoType5.question + "。",
-          answer: getLv2Ch2Sec1InfoType5.answer,
-          options: getLv2Ch2Sec1InfoType5.option
-        },
-          {
-          numb: 6,
-          question: "展開 " + getLv2Ch2Sec1InfoType6.question + "。",
-          answer: getLv2Ch2Sec1InfoType6.answer,
-          options: getLv2Ch2Sec1InfoType6.option
-        },
-          {
-          numb: 7,
-          question: "展開 " + getLv2Ch2Sec1InfoType7.question + "。",
-          answer: getLv2Ch2Sec1InfoType7.answer,
-          options: getLv2Ch2Sec1InfoType7.option
-        },
-          {
-          numb: 8,
-          question: "展開 " + getLv2Ch2Sec1InfoType8.question + "。",
-          answer: getLv2Ch2Sec1InfoType8.answer,
-          options: getLv2Ch2Sec1InfoType8.option
-        },
-          {
-          numb: 9,
-          question: "展開 " + getLv2Ch2Sec1InfoType9.question + "。",
-          answer: getLv2Ch2Sec1InfoType9.answer,
-          options: getLv2Ch2Sec1InfoType9.option
-        },
-        ];
-        quizQuestionNum.innerHTML = " " + Lv2Ch2Sec1Question.length + " ";
-        questionNum.innerHTML = " " + Lv2Ch2Sec1Question.length + " ";
-        quizTimeLimit.innerHTML = " 6 分鐘 ";
+            // Actions
+            const createRoom = async (name, password) => {
+                if (!name) return;
+                const newRoomRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'math24_rooms'));
+                const initialData = {
+                    name, password, hostId: user.uid, status: 'lobby', createdAt: serverTimestamp(),
+                    players: { [user.uid]: { id: user.uid, name: userName, score: 2, ready: false, status: 'online' } },
+                    gameState: { round: 0, deck: [], currentCards: [], buzzerId: null, impossibleVotes: [], history: [] }
+                };
+                await setDoc(newRoomRef, initialData);
+                setRoomId(newRoomRef.id);
+                setCurrentView('room');
+            };
 
-      return Lv2Ch2Sec1Question;
-      }
+            const joinRoom = async (room) => {
+                if (room.password && prompt("請輸入房間密碼:") !== room.password) { alert("密碼錯誤"); return; }
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', room.id);
+                await updateDoc(roomRef, { [`players.${user.uid}`]: { id: user.uid, name: userName, score: 2, ready: false, status: 'online' } });
+                setRoomId(room.id);
+                setCurrentView('room');
+            };
 
-    //Form 2 Chapter 2 Section 2 - Expansion - Perfect Square (DONE)
-    function getLv2Ch2Sec2(){
-        mode = "option";
-        timeAllowed = 6;
-        var getLv2Ch2Sec2InfoType1 = identityExpansionType11();
-        var getLv2Ch2Sec2InfoType2 = identityExpansionType12();
-        var getLv2Ch2Sec2InfoType3 = identityExpansionType13();
-        var getLv2Ch2Sec2InfoType4 = identityExpansionType14();
-        var getLv2Ch2Sec2InfoType5 = identityExpansionType15();
-        var getLv2Ch2Sec2InfoType6 = identityExpansionType16();
-        var getLv2Ch2Sec2InfoType7 = identityExpansionType17();
-        var getLv2Ch2Sec2InfoType8 = identityExpansionType18();
-        var getLv2Ch2Sec2InfoType9 = identityExpansionType19();
-        var getLv2Ch2Sec2InfoType10 = identityExpansionType20();
+            const toggleReady = async () => {
+                if (!roomId) return;
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
+                await updateDoc(roomRef, { [`players.${user.uid}.ready`]: !roomData.players[user.uid].ready });
+            };
 
-        let Lv2Ch2Sec2Question = [
-            {
-            numb: 1,
-            question: "展開 " + getLv2Ch2Sec2InfoType1.question + "。",
-            answer: getLv2Ch2Sec2InfoType1.answer,
-            options: getLv2Ch2Sec2InfoType1.option
-          },
-            {
-            numb: 2,
-            question: "展開 " + getLv2Ch2Sec2InfoType2.question + "。",
-            answer: getLv2Ch2Sec2InfoType2.answer,
-            options: getLv2Ch2Sec2InfoType2.option
-          },
-            {
-            numb: 3,
-            question: "展開 " + getLv2Ch2Sec2InfoType3.question + "。",
-            answer: getLv2Ch2Sec2InfoType3.answer,
-            options: getLv2Ch2Sec2InfoType3.option
-          },
-            {
-            numb: 4,
-            question: "展開 " + getLv2Ch2Sec2InfoType4.question + "。",
-            answer: getLv2Ch2Sec2InfoType4.answer,
-            options: getLv2Ch2Sec2InfoType4.option
-          },
-            {
-            numb: 5,
-            question: "展開 " + getLv2Ch2Sec2InfoType5.question + "。",
-            answer: getLv2Ch2Sec2InfoType5.answer,
-            options: getLv2Ch2Sec2InfoType5.option
-          },
-            {
-            numb: 6,
-            question: "展開 " + getLv2Ch2Sec2InfoType6.question + "。",
-            answer: getLv2Ch2Sec2InfoType6.answer,
-            options: getLv2Ch2Sec2InfoType6.option
-          },
-            {
-            numb: 7,
-            question: "展開 " + getLv2Ch2Sec2InfoType7.question + "。",
-            answer: getLv2Ch2Sec2InfoType7.answer,
-            options: getLv2Ch2Sec2InfoType7.option
-          },
-            {
-            numb: 8,
-            question: "展開 " + getLv2Ch2Sec2InfoType8.question + "。",
-            answer: getLv2Ch2Sec2InfoType8.answer,
-            options: getLv2Ch2Sec2InfoType8.option
-          },
-            {
-            numb: 9,
-            question: "展開 " + getLv2Ch2Sec2InfoType9.question + "。",
-            answer: getLv2Ch2Sec2InfoType9.answer,
-            options: getLv2Ch2Sec2InfoType9.option
-          },
-            {
-            numb: 10,
-            question: "展開 " + getLv2Ch2Sec2InfoType10.question + "。",
-            answer: getLv2Ch2Sec2InfoType10.answer,
-            options: getLv2Ch2Sec2InfoType10.option
-          },
-          ];
-        quizQuestionNum.innerHTML = " " + Lv2Ch2Sec2Question.length + " ";
-        questionNum.innerHTML = " " + Lv2Ch2Sec2Question.length + " ";
-        quizTimeLimit.innerHTML = " 6 分鐘 ";
-        return Lv2Ch2Sec2Question;
-        }
+            const startGame = async () => {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
+                await startNewRound(roomRef, generateDeck(), true);
+            };
 
-    //Form 2 Chapter 2 Section 3 - Common Factor (DONE)
-    function getLv2Ch2Sec3(){
-      mode = "option";
-      timeAllowed = 6;
-      var getLv2Ch2Sec3InfoType1 = commonFactorType1();
-      var getLv2Ch2Sec3InfoType2 = commonFactorType2();
-      var getLv2Ch2Sec3InfoType3 = commonFactorType3();
-      var getLv2Ch2Sec3InfoType4 = commonFactorType4();
-      var getLv2Ch2Sec3InfoType5 = commonFactorType5();
-      var getLv2Ch2Sec3InfoType6 = commonFactorType6();
-      var getLv2Ch2Sec3InfoType7 = commonFactorType7();
-      var getLv2Ch2Sec3InfoType8 = commonFactorType8();
-      var getLv2Ch2Sec3InfoType9 = commonFactorType9();
-      var getLv2Ch2Sec3InfoType10 = commonFactorType10();
-      var getLv2Ch2Sec3InfoType11 = commonFactorType11();
+            const startNewRound = async (roomRef, deckToUse, resetScores = false) => {
+                // Use ref for latest data check
+                const currentData = roomDataRef.current || roomData;
+                
+                if (!resetScores && currentData) {
+                    const winner = Object.values(currentData.players).find(p => p.score >= 10);
+                    const loser = Object.values(currentData.players).find(p => p.score <= 0);
+                    if (winner || loser) { await updateDoc(roomRef, { status: 'finished' }); return; }
+                }
+                let currentDeck = [...deckToUse];
+                if (currentDeck.length < 4) currentDeck = generateDeck();
+                const cards = [currentDeck.pop(), currentDeck.pop(), currentDeck.pop(), currentDeck.pop()];
+                await updateDoc(roomRef, {
+                    'gameState.round': increment(1),
+                    'gameState.deck': currentDeck, 'gameState.currentCards': cards, 'gameState.roundEndTime': Date.now() + 60000,
+                    'gameState.buzzerId': null, 'gameState.buzzerEndTime': null, 'gameState.impossibleVotes': [], status: 'playing'
+                });
+            };
 
-      let Lv2Ch2Sec3Question = [
-          {
-          numb: 1,
-          question: "因式分解 " + getLv2Ch2Sec3InfoType1.question + "。",
-          answer: getLv2Ch2Sec3InfoType1.answer,
-          options: getLv2Ch2Sec3InfoType1.option
-        },
-          {
-          numb: 2,
-          question: "因式分解 " + getLv2Ch2Sec3InfoType2.question + "。",
-          answer: getLv2Ch2Sec3InfoType2.answer,
-          options: getLv2Ch2Sec3InfoType2.option
-        },
-          {
-          numb: 3,
-          question: "因式分解 " + getLv2Ch2Sec3InfoType3.question + "。",
-          answer: getLv2Ch2Sec3InfoType3.answer,
-          options: getLv2Ch2Sec3InfoType3.option
-        },
-          {
-          numb: 4,
-          question: "因式分解 " + getLv2Ch2Sec3InfoType4.question + "。",
-          answer: getLv2Ch2Sec3InfoType4.answer,
-          options: getLv2Ch2Sec3InfoType4.option
-        },
-          {
-          numb: 5,
-          question: "因式分解 " + getLv2Ch2Sec3InfoType5.question + "。",
-          answer: getLv2Ch2Sec3InfoType5.answer,
-          options: getLv2Ch2Sec3InfoType5.option
-        },
-          {
-          numb: 6,
-          question: "因式分解 " + getLv2Ch2Sec3InfoType6.question + "。",
-          answer: getLv2Ch2Sec3InfoType6.answer,
-          options: getLv2Ch2Sec3InfoType6.option
-        },
-          {
-          numb: 7,
-          question: "因式分解 " + getLv2Ch2Sec3InfoType7.question + "。",
-          answer: getLv2Ch2Sec3InfoType7.answer,
-          options: getLv2Ch2Sec3InfoType7.option
-        },
-          {
-          numb: 8,
-          question: "因式分解 " + getLv2Ch2Sec3InfoType8.question + "。",
-          answer: getLv2Ch2Sec3InfoType8.answer,
-          options: getLv2Ch2Sec3InfoType8.option
-        },
-          {
-          numb: 9,
-          question: "因式分解 " + getLv2Ch2Sec3InfoType9.question + "。",
-          answer: getLv2Ch2Sec3InfoType9.answer,
-          options: getLv2Ch2Sec3InfoType9.option
-        },
-          {
-          numb: 10,
-          question: "因式分解 " + getLv2Ch2Sec3InfoType10.question + "。",
-          answer: getLv2Ch2Sec3InfoType10.answer,
-          options: getLv2Ch2Sec3InfoType10.option
-        },
-          {
-          numb: 11,
-          question: "因式分解 " + getLv2Ch2Sec3InfoType11.question + "。",
-          answer: getLv2Ch2Sec3InfoType11.answer,
-          options: getLv2Ch2Sec3InfoType11.option
-        },
-        ];
-        quizQuestionNum.innerHTML = " " + Lv2Ch2Sec3Question.length + " ";
-        questionNum.innerHTML = " " + Lv2Ch2Sec3Question.length + " ";
-        quizTimeLimit.innerHTML = " 6 分鐘 ";
-      return Lv2Ch2Sec3Question;
-    }
+            const leaveRoom = async () => {
+                if (!roomId) return;
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
+                if (Object.keys(roomData.players).length <= 1) { await deleteDoc(roomRef); } else {
+                    const newPlayers = { ...roomData.players }; delete newPlayers[user.uid];
+                    let newHostId = roomData.hostId === user.uid ? Object.keys(newPlayers)[0] : roomData.hostId;
+                    await updateDoc(roomRef, { players: newPlayers, hostId: newHostId });
+                }
+                setRoomId(null); setCurrentView('lobby');
+            };
 
-    //Form 2 Chapter 2 Section 4 - Grouping Terms Method (DONE)
-    function getLv2Ch2Sec4(){
-      mode = "option";
-      timeAllowed = 8;
-      var getLv2Ch2Sec4InfoType1 = groupingFactorType1();
-      var getLv2Ch2Sec4InfoType2 = groupingFactorType2();
-      var getLv2Ch2Sec4InfoType3 = groupingFactorType3();
-      var getLv2Ch2Sec4InfoType4 = groupingFactorType4();
-      var getLv2Ch2Sec4InfoType5 = groupingFactorType5();
-      var getLv2Ch2Sec4InfoType6 = groupingFactorType6();
-      var getLv2Ch2Sec4InfoType7 = groupingFactorType7();
-      var getLv2Ch2Sec4InfoType8 = groupingFactorType8();
+            const buzz = async () => {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
+                if (roomData.gameState.buzzerId) return;
+                try {
+                    await updateDoc(roomRef, { 'gameState.buzzerId': user.uid, 'gameState.buzzerEndTime': Date.now() + 10000 });
+                    setExpression([]); setUsedCardIndices([]);
+                } catch (e) { console.error("搶答失敗", e); }
+            };
 
-      let Lv2Ch2Sec4Question = [
-          {
-          numb: 1,
-          question: "因式分解 " + getLv2Ch2Sec4InfoType1.question + "。",
-          answer: getLv2Ch2Sec4InfoType1.answer,
-          options: getLv2Ch2Sec4InfoType1.option
-        },
-          {
-          numb: 2,
-          question: "因式分解 " + getLv2Ch2Sec4InfoType2.question + "。",
-          answer: getLv2Ch2Sec4InfoType2.answer,
-          options: getLv2Ch2Sec4InfoType2.option
-        },
-          {
-          numb: 3,
-          question: "因式分解 " + getLv2Ch2Sec4InfoType3.question + "。",
-          answer: getLv2Ch2Sec4InfoType3.answer,
-          options: getLv2Ch2Sec4InfoType3.option
-        },
-          {
-          numb: 4,
-          question: "因式分解 " + getLv2Ch2Sec4InfoType4.question + "。",
-          answer: getLv2Ch2Sec4InfoType4.answer,
-          options: getLv2Ch2Sec4InfoType4.option
-        },
-          {
-          numb: 5,
-          question: "因式分解 " + getLv2Ch2Sec4InfoType5.question + "。",
-          answer: getLv2Ch2Sec4InfoType5.answer,
-          options: getLv2Ch2Sec4InfoType5.option
-        },
-          {
-          numb: 6,
-          question: "因式分解 " + getLv2Ch2Sec4InfoType6.question + "。",
-          answer: getLv2Ch2Sec4InfoType6.answer,
-          options: getLv2Ch2Sec4InfoType6.option
-        },
-          {
-          numb: 7,
-          question: "因式分解 " + getLv2Ch2Sec4InfoType7.question + "。",
-          answer: getLv2Ch2Sec4InfoType7.answer,
-          options: getLv2Ch2Sec4InfoType7.option
-        },
-          {
-          numb: 8,
-          question: "因式分解 " + getLv2Ch2Sec4InfoType8.question + "。",
-          answer: getLv2Ch2Sec4InfoType8.answer,
-          options: getLv2Ch2Sec4InfoType8.option
-        },
-      ];
-      quizQuestionNum.innerHTML = " " + Lv2Ch2Sec4Question.length + " ";
-      questionNum.innerHTML = " " + Lv2Ch2Sec4Question.length + " ";
-      quizTimeLimit.innerHTML = " 8 分鐘 ";
-      return Lv2Ch2Sec4Question;
-    }
+            const submitAnswer = async () => {
+                if (expression.length === 0) return;
+                const exprStr = expression.map(t => t.val).join(' ');
+                // Ensure display expression uses nice operators
+                const displayExpr = expression.map(t => t.label).join(' ');
 
-    //Form 2 Chapter 2 Section 5 - Factorization - Difference of two Squares (DONE)
-    function getLv2Ch2Sec5(){
-      mode = "option";
-      timeAllowed = 6;
-      var getLv2Ch2Sec5InfoType1 = identityFactorizationType1();
-      var getLv2Ch2Sec5InfoType2 = identityFactorizationType2();
-      var getLv2Ch2Sec5InfoType3 = identityFactorizationType3();
-      var getLv2Ch2Sec5InfoType4 = identityFactorizationType4();
-      var getLv2Ch2Sec5InfoType5 = identityFactorizationType5();
-      var getLv2Ch2Sec5InfoType6 = identityFactorizationType6();
-      var getLv2Ch2Sec5InfoType7 = identityFactorizationType7();
-      var getLv2Ch2Sec5InfoType8 = identityFactorizationType8();
-      var getLv2Ch2Sec5InfoType9 = identityFactorizationType9();
-      var getLv2Ch2Sec5InfoType10 = identityFactorizationType10();
+                const result = evaluateExpression(exprStr);
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
 
-      let Lv2Ch2Sec5Question = [
-          {
-          numb: 1,
-          question: "因式分解 " + getLv2Ch2Sec5InfoType1.question + "。",
-          answer: getLv2Ch2Sec5InfoType1.answer,
-          options: getLv2Ch2Sec5InfoType1.option
-        },
-          {
-          numb: 2,
-          question: "因式分解 " + getLv2Ch2Sec5InfoType2.question + "。",
-          answer: getLv2Ch2Sec5InfoType2.answer,
-          options: getLv2Ch2Sec5InfoType2.option
-        },
-          {
-          numb: 3,
-          question: "因式分解 " + getLv2Ch2Sec5InfoType3.question + "。",
-          answer: getLv2Ch2Sec5InfoType3.answer,
-          options: getLv2Ch2Sec5InfoType3.option
-        },
-          {
-          numb: 4,
-          question: "因式分解 " + getLv2Ch2Sec5InfoType4.question + "。",
-          answer: getLv2Ch2Sec5InfoType4.answer,
-          options: getLv2Ch2Sec5InfoType4.option
-        },
-          {
-          numb: 5,
-          question: "因式分解 " + getLv2Ch2Sec5InfoType5.question + "。",
-          answer: getLv2Ch2Sec5InfoType5.answer,
-          options: getLv2Ch2Sec5InfoType5.option
-        },
-          {
-          numb: 6,
-          question: "因式分解 " + getLv2Ch2Sec5InfoType6.question + "。",
-          answer: getLv2Ch2Sec5InfoType6.answer,
-          options: getLv2Ch2Sec5InfoType6.option
-        },
-          {
-          numb: 7,
-          question: "因式分解 " + getLv2Ch2Sec5InfoType7.question + "。",
-          answer: getLv2Ch2Sec5InfoType7.answer,
-          options: getLv2Ch2Sec5InfoType7.option
-        },
-          {
-          numb: 8,
-          question: "因式分解 " + getLv2Ch2Sec5InfoType8.question + "。",
-          answer: getLv2Ch2Sec5InfoType8.answer,
-          options: getLv2Ch2Sec5InfoType8.option
-        },
-          {
-          numb: 9,
-          question: "因式分解 " + getLv2Ch2Sec5InfoType9.question + "。",
-          answer: getLv2Ch2Sec5InfoType9.answer,
-          options: getLv2Ch2Sec5InfoType9.option
-        },
-          {
-          numb: 10,
-          question: "因式分解 " + getLv2Ch2Sec5InfoType10.question + "。",
-          answer: getLv2Ch2Sec5InfoType10.answer,
-          options: getLv2Ch2Sec5InfoType10.option
-        },
-        ];
-        quizQuestionNum.innerHTML = " " + Lv2Ch2Sec5Question.length + " ";
-        questionNum.innerHTML = " " + Lv2Ch2Sec5Question.length + " ";
-        quizTimeLimit.innerHTML = " 6 分鐘 ";
-      return Lv2Ch2Sec5Question;
-    }
+                if (Math.abs(result - 24) < 0.0001 && usedCardIndices.length === 4) {
+                    playSound('correct');
+                    await updateScoreAndNextRound(roomRef, user.uid, 1, displayExpr, "Success");
+                } else {
+                    playSound('wrong');
+                    await updateScoreAndNextRound(roomRef, user.uid, -1, displayExpr, "Wrong");
+                }
+            };
 
-    //Form 2 Chapter 2 Section 6 - Factorization - Perfect Square (DONE)
-    function getLv2Ch2Sec6(){
-      mode = "option";
-      timeAllowed = 6;
-      var getLv2Ch2Sec6InfoType1 = identityFactorizationType11();
-      var getLv2Ch2Sec6InfoType2 = identityFactorizationType12();
-      var getLv2Ch2Sec6InfoType3 = identityFactorizationType13();
-      var getLv2Ch2Sec6InfoType4 = identityFactorizationType14();
-      var getLv2Ch2Sec6InfoType5 = identityFactorizationType15();
-      var getLv2Ch2Sec6InfoType6 = identityFactorizationType16();
-      var getLv2Ch2Sec6InfoType7 = identityFactorizationType17();
-      var getLv2Ch2Sec6InfoType8 = identityFactorizationType18();
-      var getLv2Ch2Sec6InfoType9 = identityFactorizationType19();
-      var getLv2Ch2Sec6InfoType10 = identityFactorizationType20();
+            const updateScoreAndNextRound = async (roomRef, playerId, scoreDelta, expressionStr, resultStatus) => {
+                // Use Ref to access latest data inside timer closures
+                const currentData = roomDataRef.current;
+                if (!currentData) return;
 
-      let Lv2Ch2Sec6Question = [
-          {
-          numb: 1,
-          question: "因式分解 " + getLv2Ch2Sec6InfoType1.question + "。",
-          answer: getLv2Ch2Sec6InfoType1.answer,
-          options: getLv2Ch2Sec6InfoType1.option
-        },
-          {
-          numb: 2,
-          question: "因式分解 " + getLv2Ch2Sec6InfoType2.question + "。",
-          answer: getLv2Ch2Sec6InfoType2.answer,
-          options: getLv2Ch2Sec6InfoType2.option
-        },
-          {
-          numb: 3,
-          question: "因式分解 " + getLv2Ch2Sec6InfoType3.question + "。",
-          answer: getLv2Ch2Sec6InfoType3.answer,
-          options: getLv2Ch2Sec6InfoType3.option
-        },
-          {
-          numb: 4,
-          question: "因式分解 " + getLv2Ch2Sec6InfoType4.question + "。",
-          answer: getLv2Ch2Sec6InfoType4.answer,
-          options: getLv2Ch2Sec6InfoType4.option
-        },
-          {
-          numb: 5,
-          question: "因式分解 " + getLv2Ch2Sec6InfoType5.question + "。",
-          answer: getLv2Ch2Sec6InfoType5.answer,
-          options: getLv2Ch2Sec6InfoType5.option
-        },
-          {
-          numb: 6,
-          question: "因式分解 " + getLv2Ch2Sec6InfoType6.question + "。",
-          answer: getLv2Ch2Sec6InfoType6.answer,
-          options: getLv2Ch2Sec6InfoType6.option
-        },
-          {
-          numb: 7,
-          question: "因式分解 " + getLv2Ch2Sec6InfoType7.question + "。",
-          answer: getLv2Ch2Sec6InfoType7.answer,
-          options: getLv2Ch2Sec6InfoType7.option
-        },
-          {
-          numb: 8,
-          question: "因式分解 " + getLv2Ch2Sec6InfoType8.question + "。",
-          answer: getLv2Ch2Sec6InfoType8.answer,
-          options: getLv2Ch2Sec6InfoType8.option
-        },
-          {
-          numb: 9,
-          question: "因式分解 " + getLv2Ch2Sec6InfoType9.question + "。",
-          answer: getLv2Ch2Sec6InfoType9.answer,
-          options: getLv2Ch2Sec6InfoType9.option
-        },
-          {
-          numb: 10,
-          question: "因式分解 " + getLv2Ch2Sec6InfoType10.question + "。",
-          answer: getLv2Ch2Sec6InfoType10.answer,
-          options: getLv2Ch2Sec6InfoType10.option
-        },
-        ];
-        quizQuestionNum.innerHTML = " " + Lv2Ch2Sec6Question.length + " ";
-        questionNum.innerHTML = " " + Lv2Ch2Sec6Question.length + " ";
-        quizTimeLimit.innerHTML = " 6 分鐘 ";
-      return Lv2Ch2Sec6Question;
-    }
+                const currentScore = currentData.players[playerId]?.score || 0;
+                const newScore = currentScore + scoreDelta;
+                const isGameOver = newScore >= 10 || newScore <= 0;
 
-    //Form 2 Chapter 2 Section 7 - Identity Expansion Revision (DONE)
-    function getLv2Ch2Sec7(){
-      mode = "option";
-      timeAllowed = 6;
-      var getLv2Ch2Sec7InfoType1 = identityExpansionType1();
-      var getLv2Ch2Sec7InfoType2 = identityExpansionType11();
-      var getLv2Ch2Sec7InfoType3 = identityExpansionType12();
-      var getLv2Ch2Sec7InfoType4 = identityExpansionType3();
-      var getLv2Ch2Sec7InfoType5 = identityExpansionType6();
-      var getLv2Ch2Sec7InfoType6 = identityExpansionType13();
-      var getLv2Ch2Sec7InfoType7 = identityExpansionType16();
-      var getLv2Ch2Sec7InfoType8 = identityExpansionType8();
-      var getLv2Ch2Sec7InfoType9 = identityExpansionType9();
-      var getLv2Ch2Sec7InfoType10 = identityExpansionType20();
+                const historyEntry = {
+                    round: currentData.gameState.round || 1,
+                    cards: currentData.gameState.currentCards,
+                    playerName: currentData.players[playerId].name,
+                    expression: expressionStr,
+                    result: resultStatus, // "Success", "Wrong", "Timeout"
+                    timestamp: Date.now()
+                };
 
-      let Lv2Ch2Sec7Question = [
-          {
-          numb: 1,
-          question: "展開 " + getLv2Ch2Sec7InfoType1.question + "。",
-          answer: getLv2Ch2Sec7InfoType1.answer,
-          options: getLv2Ch2Sec7InfoType1.option
-        },
-          {
-          numb: 2,
-          question: "展開 " + getLv2Ch2Sec7InfoType2.question + "。",
-          answer: getLv2Ch2Sec7InfoType2.answer,
-          options: getLv2Ch2Sec7InfoType2.option
-        },
-          {
-          numb: 3,
-          question: "展開 " + getLv2Ch2Sec7InfoType3.question + "。",
-          answer: getLv2Ch2Sec7InfoType3.answer,
-          options: getLv2Ch2Sec7InfoType3.option
-        },
-          {
-          numb: 4,
-          question: "展開 " + getLv2Ch2Sec7InfoType4.question + "。",
-          answer: getLv2Ch2Sec7InfoType4.answer,
-          options: getLv2Ch2Sec7InfoType4.option
-        },
-          {
-          numb: 5,
-          question: "展開 " + getLv2Ch2Sec7InfoType5.question + "。",
-          answer: getLv2Ch2Sec7InfoType5.answer,
-          options: getLv2Ch2Sec7InfoType5.option
-        },
-          {
-          numb: 6,
-          question: "展開 " + getLv2Ch2Sec7InfoType6.question + "。",
-          answer: getLv2Ch2Sec7InfoType6.answer,
-          options: getLv2Ch2Sec7InfoType6.option
-        },
-          {
-          numb: 7,
-          question: "展開 " + getLv2Ch2Sec7InfoType7.question + "。",
-          answer: getLv2Ch2Sec7InfoType7.answer,
-          options: getLv2Ch2Sec7InfoType7.option
-        },
-          {
-          numb: 8,
-          question: "展開 " + getLv2Ch2Sec7InfoType8.question + "。",
-          answer: getLv2Ch2Sec7InfoType8.answer,
-          options: getLv2Ch2Sec7InfoType8.option
-        },
-          {
-          numb: 9,
-          question: "展開 " + getLv2Ch2Sec7InfoType9.question + "。",
-          answer: getLv2Ch2Sec7InfoType9.answer,
-          options: getLv2Ch2Sec7InfoType9.option
-        },
-          {
-          numb: 10,
-          question: "展開 " + getLv2Ch2Sec7InfoType10.question + "。",
-          answer: getLv2Ch2Sec7InfoType10.answer,
-          options: getLv2Ch2Sec7InfoType10.option
-        },
-        ];
-        quizQuestionNum.innerHTML = " " + Lv2Ch2Sec7Question.length + " ";
-        questionNum.innerHTML = " " + Lv2Ch2Sec7Question.length + " ";
-        quizTimeLimit.innerHTML = " 6 分鐘 ";
-      return Lv2Ch2Sec7Question;
-    }
+                if (isGameOver) {
+                    await updateDoc(roomRef, { 
+                        [`players.${playerId}.score`]: increment(scoreDelta),
+                        'gameState.buzzerId': null,
+                        'status': 'finished',
+                        'gameState.history': arrayUnion(historyEntry)
+                    });
+                } else {
+                    await updateDoc(roomRef, { 
+                        [`players.${playerId}.score`]: increment(scoreDelta),
+                        'gameState.buzzerId': null,
+                        'status': 'resolving',
+                        'gameState.history': arrayUnion(historyEntry),
+                        'gameState.lastRoundResult': historyEntry
+                    });
+                    
+                    setTimeout(() => { 
+                        const currentDeck = roomDataRef.current?.gameState?.deck || [];
+                        startNewRound(roomRef, currentDeck); 
+                    }, 4000);
+                }
+            };
 
-    //Form 2 Chapter 2 Section 8 - Simple Factorization Revision (DONE)
-    function getLv2Ch2Sec8(){
-      mode = "option";
-      timeAllowed = 8;
-      var getLv2Ch2Sec8InfoType1 = commonFactorType2();
-      var getLv2Ch2Sec8InfoType2 = commonFactorType3();
-      var getLv2Ch2Sec8InfoType3 = commonFactorType4();
-      var getLv2Ch2Sec8InfoType4 = commonFactorType6();
-      var getLv2Ch2Sec8InfoType5 = commonFactorType7();
-      var getLv2Ch2Sec8InfoType6 = commonFactorType8();
-      var getLv2Ch2Sec8InfoType7 = commonFactorType10();
-      var getLv2Ch2Sec8InfoType8 = commonFactorType11();
-      var getLv2Ch2Sec8InfoType9 = groupingFactorType4();
-      var getLv2Ch2Sec8InfoType10 = groupingFactorType5();
+            const voteImpossible = async () => {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
+                const votes = roomData.gameState.impossibleVotes || [];
+                if (votes.includes(user.uid)) return;
+                const newVotes = [...votes, user.uid];
+                
+                if (newVotes.length >= Object.keys(roomData.players).length) {
+                     const historyEntry = {
+                        round: roomData.gameState.round || 1,
+                        cards: roomData.gameState.currentCards,
+                        playerName: "全體投票",
+                        expression: "無解",
+                        result: "Impossible",
+                        timestamp: Date.now()
+                    };
+                    await updateDoc(roomRef, { 
+                        'gameState.history': arrayUnion(historyEntry),
+                        'gameState.lastRoundResult': historyEntry,
+                        'status': 'resolving'
+                    });
+                    setTimeout(() => startNewRound(roomRef, roomData.gameState.deck), 4000);
+                } else { 
+                    await updateDoc(roomRef, { 'gameState.impossibleVotes': newVotes }); 
+                }
+            };
 
-      let Lv2Ch2Sec8Question = [
-          {
-          numb: 1,
-          question: "因式分解 " + getLv2Ch2Sec8InfoType1.question + "。",
-          answer: getLv2Ch2Sec8InfoType1.answer,
-          options: getLv2Ch2Sec8InfoType1.option
-        },
-          {
-          numb: 2,
-          question: "因式分解 " + getLv2Ch2Sec8InfoType2.question + "。",
-          answer: getLv2Ch2Sec8InfoType2.answer,
-          options: getLv2Ch2Sec8InfoType2.option
-        },
-          {
-          numb: 3,
-          question: "因式分解 " + getLv2Ch2Sec8InfoType3.question + "。",
-          answer: getLv2Ch2Sec8InfoType3.answer,
-          options: getLv2Ch2Sec8InfoType3.option
-        },
-          {
-          numb: 4,
-          question: "因式分解 " + getLv2Ch2Sec8InfoType4.question + "。",
-          answer: getLv2Ch2Sec8InfoType4.answer,
-          options: getLv2Ch2Sec8InfoType4.option
-        },
-          {
-          numb: 5,
-          question: "因式分解 " + getLv2Ch2Sec8InfoType5.question + "。",
-          answer: getLv2Ch2Sec8InfoType5.answer,
-          options: getLv2Ch2Sec8InfoType5.option
-        },
-          {
-          numb: 6,
-          question: "因式分解 " + getLv2Ch2Sec8InfoType6.question + "。",
-          answer: getLv2Ch2Sec8InfoType6.answer,
-          options: getLv2Ch2Sec8InfoType6.option
-        },
-          {
-          numb: 7,
-          question: "因式分解 " + getLv2Ch2Sec8InfoType7.question + "。",
-          answer: getLv2Ch2Sec8InfoType7.answer,
-          options: getLv2Ch2Sec8InfoType7.option
-        },
-          {
-          numb: 8,
-          question: "因式分解 " + getLv2Ch2Sec8InfoType8.question + "。",
-          answer: getLv2Ch2Sec8InfoType8.answer,
-          options: getLv2Ch2Sec8InfoType8.option
-        },
-          {
-          numb: 9,
-          question: "因式分解 " + getLv2Ch2Sec8InfoType9.question + "。",
-          answer: getLv2Ch2Sec8InfoType9.answer,
-          options: getLv2Ch2Sec8InfoType9.option
-        },
-          {
-          numb: 10,
-          question: "因式分解 " + getLv2Ch2Sec8InfoType10.question + "。",
-          answer: getLv2Ch2Sec8InfoType10.answer,
-          options: getLv2Ch2Sec8InfoType10.option
-        },
-        ];
-        quizQuestionNum.innerHTML = " " + Lv2Ch2Sec8Question.length + " ";
-        questionNum.innerHTML = " " + Lv2Ch2Sec8Question.length + " ";
-        quizTimeLimit.innerHTML = " 8 分鐘 ";
-      return Lv2Ch2Sec8Question;
-    }
+            // --- Views ---
 
-    //Form 2 Chapter 2 Section 9 - Identity Factorization Revision (DONE)
-    function getLv2Ch2Sec9(){
-      mode = "option";
-      timeAllowed = 8;
-      var getLv2Ch2Sec9InfoType1 = identityFactorizationType2();
-      var getLv2Ch2Sec9InfoType2 = identityFactorizationType11();
-      var getLv2Ch2Sec9InfoType3 = identityFactorizationType12();
-      var getLv2Ch2Sec9InfoType4 = identityFactorizationType3();
-      var getLv2Ch2Sec9InfoType5 = identityFactorizationType5();
-      var getLv2Ch2Sec9InfoType6 = identityFactorizationType13();
-      var getLv2Ch2Sec9InfoType7 = identityFactorizationType14();
-      var getLv2Ch2Sec9InfoType8 = identityFactorizationType17();
-      var getLv2Ch2Sec9InfoType9 = identityFactorizationType18();
-      var getLv2Ch2Sec9InfoType10 = identityFactorizationType7()
-
-      let Lv2Ch2Sec9Question = [
-          {
-          numb: 1,
-          question: "因式分解 " + getLv2Ch2Sec9InfoType1.question + "。",
-          answer: getLv2Ch2Sec9InfoType1.answer,
-          options: getLv2Ch2Sec9InfoType1.option
-        },
-          {
-          numb: 2,
-          question: "因式分解 " + getLv2Ch2Sec9InfoType2.question + "。",
-          answer: getLv2Ch2Sec9InfoType2.answer,
-          options: getLv2Ch2Sec9InfoType2.option
-        },
-          {
-          numb: 3,
-          question: "因式分解 " + getLv2Ch2Sec9InfoType3.question + "。",
-          answer: getLv2Ch2Sec9InfoType3.answer,
-          options: getLv2Ch2Sec9InfoType3.option
-        },
-          {
-          numb: 4,
-          question: "因式分解 " + getLv2Ch2Sec9InfoType4.question + "。",
-          answer: getLv2Ch2Sec9InfoType4.answer,
-          options: getLv2Ch2Sec9InfoType4.option
-        },
-          {
-          numb: 5,
-          question: "因式分解 " + getLv2Ch2Sec9InfoType5.question + "。",
-          answer: getLv2Ch2Sec9InfoType5.answer,
-          options: getLv2Ch2Sec9InfoType5.option
-        },
-          {
-          numb: 6,
-          question: "因式分解 " + getLv2Ch2Sec9InfoType6.question + "。",
-          answer: getLv2Ch2Sec9InfoType6.answer,
-          options: getLv2Ch2Sec9InfoType6.option
-        },
-          {
-          numb: 7,
-          question: "因式分解 " + getLv2Ch2Sec9InfoType7.question + "。",
-          answer: getLv2Ch2Sec9InfoType7.answer,
-          options: getLv2Ch2Sec9InfoType7.option
-        },
-          {
-          numb: 8,
-          question: "因式分解 " + getLv2Ch2Sec9InfoType8.question + "。",
-          answer: getLv2Ch2Sec9InfoType8.answer,
-          options: getLv2Ch2Sec9InfoType8.option
-        },
-          {
-          numb: 9,
-          question: "因式分解 " + getLv2Ch2Sec9InfoType9.question + "。",
-          answer: getLv2Ch2Sec9InfoType9.answer,
-          options: getLv2Ch2Sec9InfoType9.option
-        },
-          {
-          numb: 10,
-          question: "因式分解 " + getLv2Ch2Sec9InfoType10.question + "。",
-          answer: getLv2Ch2Sec9InfoType10.answer,
-          options: getLv2Ch2Sec9InfoType10.option
-        },
-        ];
-        quizQuestionNum.innerHTML = " " + Lv2Ch2Sec9Question.length + " ";
-        questionNum.innerHTML = " " + Lv2Ch2Sec9Question.length + " ";
-        quizTimeLimit.innerHTML = " 8 分鐘 ";
-      return Lv2Ch2Sec9Question;
-    }
-
-    //Form 3 Chapter 1 Section 1 - Factorization - Cross Method 1 (DONE)
-    function getLv3Ch1Sec1(){
-      mode = "option";
-      timeAllowed = 8;
-      var question1Info = factorizationCrossMethodOneType1();
-      var question2Info = factorizationCrossMethodOneType2();
-      var question3Info = factorizationCrossMethodOneType3();
-      var question4Info = factorizationCrossMethodOneType4();
-      var question5Info = factorizationCrossMethodOneType5();
-      var question6Info = factorizationCrossMethodOneType6();
-      var question7Info = factorizationCrossMethodOneType7();
-      var question8Info = factorizationCrossMethodOneType8();
-      var question9Info = factorizationCrossMethodOneType9();
-      var question10Info = factorizationCrossMethodOneType10();
-
-      let Lv3Ch1Sec1Question = [
-          {
-          numb: 1,
-          question: "因式分解 " + question1Info.question + "。",
-          answer: question1Info.answer,
-          options: question1Info.option
-        },
-          {
-        numb: 2,
-        question: "因式分解 " + question2Info.question + "。",
-        answer: question2Info.answer,
-        options: question2Info.option
-        },
-          {
-        numb: 3,
-        question: "因式分解 " + question3Info.question + "。",
-        answer: question3Info.answer,
-        options: question3Info.option
-        },
-          {
-          numb: 4,
-          question: "因式分解 " + question4Info.question + "。",
-          answer: question4Info.answer,
-          options: question4Info.option
-        },
-          {
-          numb: 5,
-          question: "因式分解 " + question5Info.question + "。",
-          answer: question5Info.answer,
-          options: question5Info.option
-        },
-          {
-          numb: 6,
-          question: "因式分解 " + question6Info.question + "。",
-          answer: question6Info.answer,
-          options: question6Info.option
-        },
-          {
-          numb: 7,
-          question: "因式分解 " + question7Info.question + "。",
-          answer: question7Info.answer,
-          options: question7Info.option
-        },
-          {
-          numb: 8,
-          question: "因式分解 " + question8Info.question + "。",
-          answer: question8Info.answer,
-          options: question8Info.option
-        },
-          {
-          numb: 9,
-          question: "因式分解 " + question9Info.question + "。",
-          answer: question9Info.answer,
-          options: question9Info.option
-        },
-          {
-          numb: 10,
-          question: "因式分解 " + question10Info.question + "。",
-          answer: question10Info.answer,
-          options: question10Info.option
-        },
-      ];
-
-        quizQuestionNum.innerHTML = " " + Lv3Ch1Sec1Question.length + " ";
-        questionNum.innerHTML = " " + Lv3Ch1Sec1Question.length + " ";
-        quizTimeLimit.innerHTML = " 8 分鐘 ";
-
-      return Lv3Ch1Sec1Question;
-      }
-
-    //Form 3 Chapter 1 Section 2 - Factorization - Cross Method 2 (DONE)
-    function getLv3Ch1Sec2(){
-      mode = "option";
-        timeAllowed = 8;
-        var question1Info = factorizationCrossMethodTwoType1();
-        var question2Info = factorizationCrossMethodTwoType2();
-        var question3Info = factorizationCrossMethodTwoType3();
-        var question4Info = factorizationCrossMethodTwoType4();
-        var question5Info = factorizationCrossMethodTwoType5();
-        var question6Info = factorizationCrossMethodTwoType6();
-        var question7Info = factorizationCrossMethodTwoType7();
-        var question8Info = factorizationCrossMethodTwoType8();
-
-
-        let Lv3Ch1Sec2Question = [
-            {
-            numb: 1,
-            question: "因式分解 " + question1Info.question + "。",
-            answer: question1Info.answer,
-            options: question1Info.option
-          },
-            {
-            numb: 2,
-            question: "因式分解 " + question2Info.question + "。",
-            answer: question2Info.answer,
-            options: question2Info.option
-          },
-            {
-            numb: 3,
-            question: "因式分解 " + question3Info.question + "。",
-            answer: question3Info.answer,
-            options: question3Info.option
-          },
-            {
-            numb: 4,
-            question: "因式分解 " + question4Info.question + "。",
-            answer: question4Info.answer,
-            options: question4Info.option
-          },
-            {
-            numb: 5,
-            question: "因式分解 " + question5Info.question + "。",
-            answer: question5Info.answer,
-            options: question5Info.option
-          },
-            {
-            numb: 6,
-            question: "因式分解 " + question6Info.question + "。",
-            answer: question6Info.answer,
-            options: question6Info.option
-          },
-            {
-            numb: 7,
-            question: "因式分解 " + question7Info.question + "。",
-            answer: question7Info.answer,
-            options: question7Info.option
-          },
-            {
-            numb: 8,
-            question: "因式分解 " + question8Info.question + "。",
-            answer: question8Info.answer,
-            options: question8Info.option
-          },
-        ];
-
-          quizQuestionNum.innerHTML = " " + Lv3Ch1Sec2Question.length + " ";
-          questionNum.innerHTML = " " + Lv3Ch1Sec2Question.length + " ";
-          quizTimeLimit.innerHTML = " 8 分鐘 ";
-
-        return Lv3Ch1Sec2Question;
-        }
-
-    //-----------------------show question and options------------------//
-    function showQuestions(index) {
-      const que_text = document.querySelector(".que_text");
-      const option_list = document.querySelector(".option_list");
-      const answer_input = document.querySelector(".answerInputBox");
-      //creating a new span and div tag for question and option and passing the value using array index
-
-      let que_tag =
-        "<span>" +
-        quizDetail[index].numb +
-        ". " +
-        quizDetail[index].question +
-        "</span>";
-        que_text.innerHTML = que_tag; //adding new span tag inside que_tag
-        var el = document.getElementsByClassName("que_text");
-        MathJax.Hub.Queue(["Typeset", MathJax.Hub, el]);
-      if(mode=="option"){
-        let option_tag =
-          '<div class="option" id="optionA"><span>' +
-          quizDetail[index].options[0] +
-          "</span></div>" +
-          '<div class="option" id="optionB"><span>' +
-          quizDetail[index].options[1] +
-          "</span></div>" +
-          '<div class="option" id="optionC"><span>' +
-          quizDetail[index].options[2] +
-          "</span></div>" +
-          '<div class="option" id="optionD"><span>' +
-          quizDetail[index].options[3] +
-          "</span></div>";
-        option_list.innerHTML = option_tag; //adding new div tag inside option_tag
-        var el = document.getElementsByClassName("option");
-        MathJax.Hub.Queue(["Typeset", MathJax.Hub, el]);
-        const option = option_list.querySelectorAll(".option");
-
-        // set onclick attribute to all available options
-        for (i = 0; i < option.length; i++) {
-          option[i].setAttribute("onclick", "optionSelected(this)");
-        }
-      }else if(mode=="input"){
-        let input_tag =
-          '<div class="answerBox"><input id="inputAnswer"><span></span><label><b>在此輸入答案 (可用 2/3 表示 $\\frac{2}{3}$)</b></label></input></div>';
-        answer_input.innerHTML = input_tag; //adding new div tag inside option_tag
-        var el = document.getElementsByClassName("answerBox");
-        MathJax.Hub.Queue(["Typeset", MathJax.Hub, el]);
-      }
-    }
-
-    //-----------------option selected-------------------//
-    function optionSelected(answer){
-      let tickIconTag = '<div class="icon tick"><i class="fas fa-check"></i></div>';
-      let crossIconTag = '<div class="icon cross"><i class="fas fa-times"></i></div>';
-
-      let userAns = answer.id; //getting user selected option
-      user_option = answer.id;
-      let correcAns = quizDetail[que_count].answer; //getting correct answer from array
-      const allOptions = option_list.children.length; //getting all option items
-
-      if (answer.id == correcAns) {
-        //if user selected option is equal to array's correct answer
-        userScore += 1; //upgrading score value with 1
-        score.innerHTML = userScore + " ";
-        answer.classList.add("correct"); //adding green color to correct selected option
-        answer.insertAdjacentHTML("beforeend", tickIconTag); //adding tick icon to correct selected option
-      } else {
-        answer.classList.add("incorrect"); //adding red color to correct selected option
-        answer.insertAdjacentHTML("beforeend", crossIconTag); //adding cross icon to correct selected option
-
-        for (i = 0; i < allOptions; i++) {
-          if (option_list.children[i].id == correcAns) {
-            //if there is an option which is matched to an array answer
-            option_list.children[i].setAttribute("class", "option correct"); //adding green color to matched option
-            option_list.children[i].insertAdjacentHTML("beforeend", tickIconTag); //adding tick icon to matched option
-          }
-        }
-      }
-      for (i = 0; i < allOptions; i++) {
-        option_list.children[i].classList.add("disabled"); //once user select an option then disabled all options
-      }
-      if(que_count == quizDetail.length - 1){
-        next_btn.innerHTML = "完成挑戰";
-        clearInterval(countTime); //clear counter
-        clearInterval(counterLine); //clear counterLine
-      }
-      next_btn.style.display = "block"; //show the next button if user selected any option
-    }
-
-    function submitAnswer(){
-      var simplify = "true";
-      var input_answer = document.getElementById("inputAnswer").value;
-      var splitArray = input_answer.split("/");
-      if(Number.isInteger(parseFloat(splitArray[0]))&&Number.isInteger(parseFloat(splitArray[1]))){
-        input_answer = parseFloat(splitArray[0])/parseFloat(splitArray[1]);
-          if(gcd_two_numbers(parseFloat(splitArray[0]), parseFloat(splitArray[1]))!=1)
-            simplify = "false";
-      }
-
-      if(document.getElementById("inputAnswer").value.length == 0){
-        alert("請輸入你的答案");
-      }else if(isNaN(input_answer)){
-        alert("請輸入數值");
-      }else if(input_answer == quizDetail[que_count].answer && simplify=="true" && parseFloat(splitArray[1])!=1){
-        inputRespon.innerHTML = "答案正確！";
-        userScore += 1; //upgrading score value with 1
-        score.innerHTML = userScore + " ";
-        if(que_count == quizDetail.length - 1){
-          next_btn.innerHTML = "完成挑戰";
-          clearInterval(countTime); //clear counter
-          clearInterval(counterLine); //clear counterLine
-        }
-        // document.getElementById("inputAnswer").disabled = true;
-        submitAnswer_btn.style.display = "none";
-        next_btn.style.display = "block";
-      }else{
-        if(Number.isInteger(quizDetail[que_count].answer))
-          inputRespon.innerHTML = "錯誤，正確答案為 " + quizDetail[que_count].answer + "。";
-        else{
-          if(quizDetail[que_count].numerator*quizDetail[que_count].denominator>=0)
-            inputRespon.innerHTML = "錯誤，正確答案為 $\\frac{" + quizDetail[que_count].numerator + "}{" + quizDetail[que_count].denominator  + "}$。";
-            else{
-              inputRespon.innerHTML = "錯誤，正確答案為 $-\\frac{" + Math.abs(quizDetail[que_count].numerator) + "}{" + Math.abs(quizDetail[que_count].denominator)  + "}$。";
-            }
-          var el = document.getElementsByClassName("input_respon");
-          MathJax.Hub.Queue(["Typeset", MathJax.Hub, el]);
-        }
-        if(que_count == quizDetail.length - 1){
-          next_btn.innerHTML = "完成挑戰";
-          clearInterval(countTime); //clear counter
-          clearInterval(counterLine); //clear counterLine
-      }
-      // document.getElementById("inputAnswer").disabled = true;
-      submitAnswer_btn.style.display = "none";
-      next_btn.style.display = "block";
-      }
-    }
-
-    //--------------------next_btn is clicked----------------------//
-    function nextQuestionBtn(){
-      que_count++;
-      if(mode=="input"){
-        submitAnswer_btn.style.display = "block";
-        next_btn.style.display = "none";
-        inputRespon.innerHTML = "";
-      }
-      if (que_count <= quizDetail.length - 1) {
-        //if question count is less than total question length
-        showQuestions(que_count); //calling showQestions function
-        next_btn.style.display = "none"; //hide the next button
-      } else {
-        document.getElementById("mcQuizBox").style.display = "none";
-        document.getElementById("resultBox").style.display = "block";
-      }
-    }
-
-    //------------------------timer and timer line----------------------//
-    function startTimer(duration, display) {
-        var timer = duration, minutes, seconds;
-        var sec = 0;
-        const time_line = document.querySelector("header .time_line");
-        countTime = setInterval(function () {
-          --timer;
-
-            minutes = parseInt(timer / 60, 10);
-            seconds = parseInt(timer % 60, 10);
-            minutes = minutes < 10 ? "0" + minutes : minutes;
-            seconds = seconds < 10 ? "0" + seconds : seconds;
-
-            display.textContent = minutes + ":" + seconds;
-            if (timer < 0) {
-                display.textContent = "00:00";
-                clearInterval(countTime);
+            // Login
+            if (currentView === 'login') {
+                return (
+                    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-800 to-slate-950">
+                        <div className="bg-slate-800/80 backdrop-blur-md rounded-2xl shadow-2xl p-8 w-full max-w-md text-center border border-slate-700">
+                            <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-yellow-400 mb-8 flex items-center justify-center gap-3 italic">
+                                <LucideGamepad2 className="w-12 h-12 text-yellow-400" /> 數24 錦標賽
+                            </h1>
+                            <input type="text" placeholder="輸入選手代號 (暱稱)" className="w-full p-4 text-xl bg-slate-950 border-2 border-slate-600 text-white rounded-xl mb-6 focus:outline-none focus:border-yellow-500 transition text-center placeholder-slate-500" value={userName} onChange={(e) => setUserName(e.target.value)} />
+                            <button onClick={() => { if (userName.trim()) setCurrentView('lobby'); }} disabled={!userName.trim()} className="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white font-bold py-4 rounded-xl text-2xl transition disabled:opacity-50 shadow-lg shadow-blue-900/50 border border-blue-500">
+                                進入賽事大廳
+                            </button>
+                        </div>
+                    </div>
+                );
             }
 
-        }, 1000);
+            // Lobby
+            if (currentView === 'lobby') {
+                return (
+                    <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-black">
+                        <div className="max-w-5xl mx-auto">
+                            <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+                                <h2 className="text-4xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-yellow-300 flex items-center gap-2">
+                                    <LucideTrophy className="w-10 h-10 text-yellow-400"/> 賽事大廳
+                                </h2>
+                                <div className="text-blue-300 font-medium bg-slate-800 px-6 py-2 rounded-full border border-blue-900 flex items-center gap-2 shadow-md">
+                                    <span className="text-slate-400">選手:</span> <span className="text-yellow-400 font-bold text-lg">{userName}</span>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="bg-slate-800/60 backdrop-blur p-6 rounded-2xl shadow-xl border border-slate-700 relative overflow-hidden group">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                                    <h3 className="text-2xl font-bold mb-6 text-blue-400 flex items-center gap-2 relative z-10"><LucidePlay className="w-6 h-6"/> 創建對戰房間</h3>
+                                    <form onSubmit={(e) => { e.preventDefault(); createRoom(e.target.roomName.value, e.target.roomPass.value); }} className="relative z-10">
+                                        <input name="roomName" placeholder="房間名稱" required className="w-full p-4 bg-slate-950 border border-slate-600 rounded-xl mb-4 text-white placeholder-slate-500 focus:border-yellow-500 focus:outline-none" />
+                                        <input name="roomPass" placeholder="密碼 (選填)" className="w-full p-4 bg-slate-950 border border-slate-600 rounded-xl mb-6 text-white placeholder-slate-500 focus:border-yellow-500 focus:outline-none" />
+                                        <button type="submit" className="w-full bg-gradient-to-r from-yellow-500 to-yellow-700 text-slate-900 py-4 rounded-xl font-black text-xl hover:from-yellow-400 hover:to-yellow-600 transition shadow-lg shadow-yellow-900/30 border border-yellow-400">建立並加入賽局</button>
+                                    </form>
+                                </div>
+                                <div className="bg-slate-800/60 backdrop-blur p-6 rounded-2xl shadow-xl border border-slate-700 relative overflow-hidden">
+                                    <h3 className="text-2xl font-bold mb-6 text-blue-400 flex items-center gap-2"><LucideUsers className="w-6 h-6"/> 進行中賽局</h3>
+                                    <div className="space-y-3 h-[28rem] overflow-y-auto pr-2 custom-scrollbar">
+                                        {roomList.length === 0 ? (
+                                            <div className="text-slate-500 text-center py-12 flex flex-col items-center"><LucideGamepad2 className="w-16 h-16 mb-4 opacity-50"/><p className="text-xl">目前沒有公開賽局</p></div>
+                                        ) : (
+                                            roomList.map(room => (
+                                                <div key={room.id} className="bg-slate-900/80 border border-slate-700 p-4 rounded-xl flex justify-between items-center hover:border-blue-500 transition group">
+                                                    <div>
+                                                        <div className="font-bold text-xl text-white group-hover:text-blue-300 transition">{room.name}</div>
+                                                        <div className="text-sm text-slate-400 flex items-center gap-2 mt-1"><LucideUsers className="w-4 h-4"/> {Object.keys(room.players || {}).length}/4 位選手 {room.password && <span className="text-yellow-500 text-xs border border-yellow-900 bg-yellow-900/20 px-2 py-0.5 rounded-full">密碼</span>}</div>
+                                                    </div>
+                                                    <button onClick={() => joinRoom(room)} className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-500 transition shadow-md border border-blue-400">加入</button>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
 
-        counterLine = setInterval(function () {
-            time_line.style.width = 4*sec/duration + "px";
-            sec++;
-            if(4*sec/duration == 400)
-              clearInterval(counterLine);
-        }, 10);
+            if (!roomData) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white font-bold text-2xl">載入賽局資料...</div>;
 
+            const isHost = roomData.hostId === user.uid;
+            const isPlaying = roomData.status === 'playing';
+            const isResolving = roomData.status === 'resolving';
+            const isFinished = roomData.status === 'finished';
+            const myPlayer = roomData.players[user.uid];
+            const buzzerId = roomData.gameState?.buzzerId;
+            const iAmBuzzer = buzzerId === user.uid;
+            const buzzerPlayer = buzzerId ? roomData.players[buzzerId] : null;
 
-    }
+            const Card = ({ cardId, index, onClick, disabled, used }) => {
+                const { rank, suit, color } = getCardDetails(cardId);
+                const isRed = color.includes('red');
+                return (
+                    <button onClick={() => onClick && onClick(index)} disabled={disabled || used} className={`relative w-20 h-28 md:w-28 md:h-40 bg-gradient-to-b from-slate-50 to-slate-200 rounded-xl shadow-lg border-2 flex flex-col items-center justify-center text-4xl md:text-5xl font-serif select-none transition-all duration-200 ${isRed ? 'text-red-600 border-red-200' : 'text-slate-900 border-slate-300'} ${used ? 'opacity-40 scale-95 grayscale' : 'hover:-translate-y-2 hover:shadow-2xl hover:border-blue-400 cursor-pointer'} ${disabled && !used ? 'cursor-not-allowed opacity-70' : ''} before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/40 before:to-transparent before:rounded-xl before:pointer-events-none`}>
+                        <div className="absolute top-2 left-3 text-lg md:text-xl font-bold">{rank}</div>
+                        <div className="text-5xl md:text-6xl drop-shadow-sm">{suit}</div>
+                        <div className="absolute bottom-2 right-3 text-lg md:text-xl font-bold transform rotate-180">{rank}</div>
+                    </button>
+                );
+            };
 
-    //----------------------back to start page----------------------//
-    function logout(){
-      window.location.reload();
-    }
+            const CardMini = ({ cardId }) => {
+                 const { rank, suit, color } = getCardDetails(cardId);
+                 const isRed = color.includes('red');
+                 return (
+                     <span className={`inline-flex items-center justify-center w-8 h-10 border rounded bg-white text-xs mx-0.5 font-bold ${isRed ? 'text-red-600 border-red-200' : 'text-slate-900 border-slate-300'}`}>
+                         {suit}{rank}
+                     </span>
+                 );
+            };
 
-</script>
+            if (isFinished) {
+                const sortedPlayers = Object.values(roomData.players).sort((a, b) => b.score - a.score);
+                const history = roomData.gameState.history || [];
+                
+                return (
+                    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-indigo-900 to-slate-950 text-white overflow-y-auto">
+                        <div className="bg-slate-800/80 backdrop-blur-xl rounded-3xl p-10 max-w-4xl w-full text-center shadow-2xl border border-slate-600 relative overflow-hidden my-8">
+                            <div className="absolute inset-0 bg-gradient-to-b from-yellow-500/10 via-transparent to-transparent opacity-50 pointer-events-none"></div>
+                            
+                            <LucideTrophy className="w-20 h-20 text-yellow-400 mx-auto mb-4 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
+                            <h2 className="text-4xl font-black mb-6 italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600">比賽結果</h2>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                                <div className="space-y-3 relative z-10">
+                                    <h3 className="text-xl font-bold text-slate-300 mb-2 border-b border-slate-600 pb-2">排行榜</h3>
+                                    {sortedPlayers.map((p, idx) => {
+                                        let bgColor = 'bg-slate-700/50', borderColor = 'border-slate-600', textColor = 'text-slate-300', rankIcon = null;
+                                        if (idx === 0) { bgColor = 'bg-gradient-to-r from-yellow-900/80 to-slate-900/80'; borderColor = 'border-yellow-500'; textColor = 'text-yellow-400'; rankIcon = <LucideCrown className="w-5 h-5 text-yellow-400 fill-yellow-400" />; }
+                                        else if (p.score <= 0) { textColor = 'text-red-400'; borderColor = 'border-red-900/50'; }
+                                        return (
+                                            <div key={p.id} className={`flex justify-between items-center p-4 rounded-xl border-2 ${bgColor} ${borderColor} shadow-md`}>
+                                                <div className={`font-bold text-lg flex items-center gap-2 ${idx === 0 ? 'text-white' : 'text-slate-200'}`}><span className="font-mono opacity-50">#{idx + 1}</span>{rankIcon}{p.name}</div>
+                                                <div className={`font-black text-2xl font-mono ${textColor}`}>{p.score} <span className="text-xs opacity-70">PTS</span></div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
 
+                                <div className="space-y-3 relative z-10 text-left h-80 overflow-y-auto custom-scrollbar pr-2">
+                                     <h3 className="text-xl font-bold text-slate-300 mb-2 border-b border-slate-600 pb-2 flex items-center gap-2"><LucideHistory className="w-5 h-5"/> 比賽回顧</h3>
+                                     {history.length === 0 ? <p className="text-slate-500 text-center italic">無紀錄</p> : 
+                                        history.map((h, i) => (
+                                            <div key={i} className="bg-slate-900/50 p-3 rounded-lg border border-slate-700 text-sm">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-slate-400 font-mono">Round {h.round}</span>
+                                                    <span className={`font-bold px-2 py-0.5 rounded text-xs ${h.result === 'Success' ? 'bg-green-900 text-green-300' : h.result === 'Wrong' ? 'bg-red-900 text-red-300' : 'bg-slate-700 text-slate-400'}`}>
+                                                        {h.result === 'Success' ? '答對' : h.result === 'Wrong' ? '答錯' : h.result === 'Timeout' ? '超時' : '無解'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-1 mb-2 bg-slate-800 p-1 rounded justify-center">
+                                                    {h.cards && h.cards.map((c, ci) => <CardMini key={ci} cardId={c}/>)}
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-blue-300 font-bold">{h.playerName}</span>
+                                                    <span className="font-mono text-slate-200">{formatToken(h.expression)}</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                     }
+                                </div>
+                            </div>
+                            
+                            <button onClick={leaveRoom} className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 rounded-xl text-xl transition border border-slate-500 relative z-10">離開賽場</button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-slate-950 flex flex-col md:flex-row overflow-hidden bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-950/50 via-slate-950 to-black text-slate-100">
+                    
+                    {/* Render Result Overlay if resolving */}
+                    {isResolving && roomData.gameState.lastRoundResult && (
+                        <RoundResultOverlay result={roomData.gameState.lastRoundResult} />
+                    )}
+
+                    <div className="w-full md:w-72 bg-slate-900/90 backdrop-blur-md border-r border-slate-800 p-6 flex flex-col gap-6 shadow-2xl z-10">
+                        <div className="mb-2">
+                            <h2 className="text-2xl font-black text-white break-all italic tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-200">{roomData.name}</h2>
+                            <p className="text-xs text-slate-500 font-mono mt-1">ROOM ID: {roomId.slice(0,6).toUpperCase()}</p>
+                        </div>
+                        <div className="flex-1 space-y-4">
+                            {Object.values(roomData.players).map(p => {
+                                const isLeader = p.score === Math.max(...Object.values(roomData.players).map(pl => pl.score)) && p.score > 2;
+                                const isBuzzer = buzzerId === p.id;
+                                return (
+                                    <div key={p.id} className={`relative p-4 rounded-xl border-2 transition-all duration-300 ${p.ready ? 'border-blue-500/50 bg-blue-950/30' : 'border-slate-700 bg-slate-800/50'} ${isLeader ? 'border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : ''} ${isBuzzer ? 'border-red-500 bg-red-950/30 shadow-[0_0_20px_rgba(239,68,68,0.5)] scale-105 z-20' : ''}`}>
+                                        {isLeader && <LucideCrown className="absolute -top-3 -left-2 w-6 h-6 text-yellow-400 fill-yellow-400 transform -rotate-12 drop-shadow-md"/>}
+                                        <div className="flex justify-between items-center mb-2"><span className={`font-bold text-lg ${isBuzzer ? 'text-white' : 'text-slate-200'}`}>{p.name}</span>{roomData.hostId === p.id && <span className="text-[0.65rem] bg-yellow-600 text-yellow-100 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">HOST</span>}</div>
+                                        <div className="flex justify-between items-end"><span className={`text-3xl font-black font-mono leading-none ${p.score <= 0 ? 'text-red-500' : isLeader ? 'text-yellow-400' : 'text-blue-400'}`}>{p.score}</span><div className="flex flex-col items-end">{buzzerId === p.id && <span className="text-xs text-red-400 animate-pulse font-bold flex items-center gap-1"><LucideZap className="w-3 h-3"/>搶答中</span>}{p.ready ? <LucideCheckCircle className="w-5 h-5 text-blue-500"/> : !isPlaying && !isResolving && <span className="text-xs text-slate-500">等待準備</span>}</div></div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                        <div className="space-y-3">
+                            {!isPlaying && !isResolving && <button onClick={toggleReady} className={`w-full py-4 rounded-xl font-black text-xl shadow-lg transition-all border-2 ${myPlayer.ready ? 'bg-red-900/20 border-red-800 text-red-400 hover:bg-red-900/40' : 'bg-blue-600 border-blue-400 text-white hover:bg-blue-500 hover:border-blue-300 hover:shadow-blue-500/30'}`}>{myPlayer.ready ? '取消準備' : '準備就緒'}</button>}
+                            {!isPlaying && !isResolving && isHost && <button onClick={startGame} className="w-full bg-gradient-to-r from-yellow-500 to-yellow-700 text-slate-900 py-4 rounded-xl font-black text-xl shadow-lg hover:from-yellow-400 hover:to-yellow-600 hover:shadow-yellow-500/30 disabled:opacity-30 disabled:cursor-not-allowed border-2 border-yellow-400 transition-all" disabled={!Object.values(roomData.players).every(p => p.ready)}>開始比賽</button>}
+                            <button onClick={leaveRoom} className="w-full py-2 text-slate-500 text-sm hover:text-slate-300 transition flex items-center justify-center gap-1"><LucideXCircle className="w-4 h-4"/> 離開房間</button>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 p-6 flex flex-col items-center relative">
+                        {isPlaying && (
+                            <div className="w-full max-w-3xl mb-10 relative">
+                                <div className="absolute inset-0 bg-slate-800/50 rounded-2xl skew-x-[-10deg] border border-slate-700"></div>
+                                <div className={`absolute inset-0 rounded-2xl skew-x-[-10deg] opacity-30 transition-all duration-1000 ease-linear ${buzzerId ? 'bg-red-600' : 'bg-blue-600'}`} style={{ width: `${Math.min(100, (timeLeft / totalTime) * 100)}%` }}></div>
+                                <div className="relative flex justify-between items-center p-4 px-8 z-10">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-lg ${timeLeft <= 10 ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-blue-500/20 text-blue-400'}`}><LucideTimer className="w-8 h-8" /></div>
+                                        <div className="flex flex-col"><span className={`text-5xl font-black font-mono leading-none tracking-tighter ${timeLeft <= 10 ? 'text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 'text-white'}`}>{timeLeft.toString().padStart(2, '0')}<span className="text-2xl">s</span></span></div>
+                                    </div>
+                                    <div className="text-right">
+                                        {buzzerId ? ( iAmBuzzer ? <div className="animate-pulse"><div className="text-yellow-400 font-bold text-2xl italic">你的回合!</div><div className="text-yellow-200/70 text-sm">請計算出 24</div></div> : <div><div className="text-red-400 font-bold text-2xl italic flex items-center gap-2 justify-end"><LucideZap className="w-5 h-5"/> {buzzerPlayer?.name} 搶答中</div><div className="text-red-200/70 text-sm">等待對手作答...</div></div> ) : ( <div><div className="text-blue-300 font-bold text-xl italic">自由搶答階段</div><div className="text-blue-200/50 text-sm">觀察卡牌，準備搶分</div></div> )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {isPlaying ? (
+                            <div className="flex flex-col items-center w-full max-w-4xl z-10">
+                                <div className={`grid grid-cols-4 gap-4 md:gap-8 mb-12 transition-all duration-500 ${buzzerId && !iAmBuzzer ? 'opacity-30 grayscale scale-95 blur-sm pointer-events-none' : ''}`}>
+                                    {roomData.gameState.currentCards.map((card, idx) => (
+                                        <Card key={idx} index={idx} cardId={card} onClick={iAmBuzzer ? (i) => { if(usedCardIndices.includes(i)) return; setUsedCardIndices([...usedCardIndices, i]); const details = getCardDetails(roomData.gameState.currentCards[i]); setExpression([...expression, { type: 'num', val: details.value, label: details.value }]); } : null} used={iAmBuzzer && usedCardIndices.includes(idx)} disabled={!!buzzerId && !iAmBuzzer} />
+                                    ))}
+                                </div>
+
+                                {!buzzerId && (
+                                    <div className="flex flex-col gap-6 w-full max-w-md animate-in fade-in zoom-in duration-300">
+                                        <button onClick={buzz} className="group relative w-full bg-gradient-to-b from-red-500 to-red-700 hover:from-red-400 hover:to-red-600 active:from-red-700 active:to-red-800 text-white font-black py-8 rounded-3xl shadow-[0_12px_0_rgb(127,29,29),0_20px_30px_rgba(220,38,38,0.5)] active:shadow-[0_4px_0_rgb(127,29,29),0_5px_10px_rgba(220,38,38,0.3)] active:translate-y-2 transition-all border-4 border-red-400 overflow-hidden">
+                                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.4)_0%,_transparent_70%)] opacity-0 group-hover:opacity-100 transition duration-500 animate-pulse"></div>
+                                            <span className="absolute inline-flex h-full w-full rounded-3xl bg-red-400 opacity-30 animate-ping inset-0 z-0"></span>
+                                            <span className="relative z-10 flex items-center justify-center gap-3 text-5xl italic tracking-widest drop-shadow-lg"><LucideZap className="w-12 h-12 fill-white"/> 搶答!</span>
+                                        </button>
+                                        <div className="flex justify-center">
+                                            <button onClick={voteImpossible} disabled={roomData.gameState.impossibleVotes?.includes(user.uid)} className={`flex items-center gap-2 px-8 py-3 rounded-full text-sm font-bold transition-all border-2 ${roomData.gameState.impossibleVotes?.includes(user.uid) ? 'bg-slate-800 text-slate-400 border-slate-700 cursor-not-allowed' : 'bg-slate-800/50 text-blue-300 border-blue-500/50 hover:bg-blue-900/30 hover:border-blue-400 hover:text-blue-200 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)]'}`}>
+                                                <LucideXCircle className="w-4 h-4"/>{roomData.gameState.impossibleVotes?.includes(user.uid) ? '已投票無解' : '這題無解 (投票)'} <span className="ml-2 bg-slate-900/80 px-3 py-0.5 rounded-full font-mono border border-slate-700">{roomData.gameState.impossibleVotes?.length || 0} / {Object.keys(roomData.players).length}</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {iAmBuzzer && (
+                                    <div className="w-full max-w-2xl bg-slate-800/90 backdrop-blur-xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-2 border-slate-700 animate-in slide-in-from-bottom-10 duration-300 relative z-20">
+                                        <div className="flex items-center gap-2 mb-4 text-yellow-400"><LucideCalculator className="w-6 h-6"/><h3 className="text-xl font-bold italic">計算公式</h3></div>
+                                        <div className="bg-black/60 border-2 border-slate-700 inset-shadow-sm p-6 rounded-2xl text-center text-3xl font-mono mb-6 min-h-[5rem] flex items-center justify-center flex-wrap gap-3 shadow-inner relative overflow-hidden">
+                                            <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none"></div>
+                                            {expression.length === 0 ? <span className="text-slate-600 text-lg italic animate-pulse">請點擊上方卡牌與下方符號...</span> : expression.map((t, i) => (<span key={i} className={`px-3 py-1 rounded-lg shadow-sm border ${t.type === 'op' ? 'bg-blue-900/50 text-blue-300 border-blue-800 font-black' : 'bg-slate-200 text-slate-900 border-slate-300 font-bold font-serif'}`}>{t.label}</span>))}
+                                        </div>
+                                        <div className="grid grid-cols-4 md:grid-cols-8 gap-3 mb-6">
+                                            {/* FIX: Map * to × and / to ÷ for display */}
+                                            {['+', '-', '*', '/', '(', ')'].map(op => ( <button key={op} onClick={() => setExpression([...expression, { type: 'op', val: op, label: op === '*' ? '×' : op === '/' ? '÷' : op }])} className="bg-slate-700 hover:bg-blue-600 text-blue-100 border border-slate-600 border-b-4 hover:border-blue-800 active:border-b-0 active:translate-y-1 font-black py-4 rounded-xl text-2xl transition-all shadow-md">{op === '*' ? '×' : op === '/' ? '÷' : op}</button> ))}
+                                            <button onClick={() => { if(expression.length === 0) return; const last = expression[expression.length - 1]; if (last.type === 'num') { setUsedCardIndices(prev => { const newArr = [...prev]; newArr.pop(); return newArr; }); } setExpression(expression.slice(0, -1)); }} className="bg-yellow-600/80 hover:bg-yellow-600 text-yellow-100 border-b-4 border-yellow-800 active:border-b-0 active:translate-y-1 font-bold py-4 rounded-xl text-xl transition-all shadow-md">←</button>
+                                            <button onClick={() => { setExpression([]); setUsedCardIndices([]); }} className="bg-red-600/80 hover:bg-red-600 text-red-100 border-b-4 border-red-800 active:border-b-0 active:translate-y-1 font-bold py-4 rounded-xl text-xl transition-all shadow-md">C</button>
+                                        </div>
+                                        <button onClick={submitAnswer} disabled={expression.length === 0} className="w-full bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-white font-black py-5 rounded-2xl text-2xl shadow-lg hover:shadow-green-500/30 border-2 border-green-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">確認提交 (= 24)</button>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            !isResolving && <div className="flex-1 flex flex-col items-center justify-center text-slate-400 opacity-80 animate-pulse"><LucideGamepad2 className="w-32 h-32 mb-6 text-slate-600" /><h3 className="text-3xl font-black italic text-slate-300 mb-2">等待賽事開始...</h3><p className="text-lg flex items-center gap-2"><LucideCrown className="w-5 h-5 text-yellow-600"/> HOST 需按下開始按鈕</p></div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(React.createElement(Math24Game));
+    </script>
 </body>
 </html>
