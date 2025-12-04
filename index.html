@@ -448,7 +448,7 @@
                 if (timerRef.current) clearInterval(timerRef.current);
                 if (data.status === 'playing') {
                     const isBuzzerPhase = !!data.gameState.buzzerId;
-                    setTotalTime(isBuzzerPhase ? 10 : 60);
+                    setTotalTime(isBuzzerPhase ? 15 : 60); // 這裡改為 15 秒
                     timerRef.current = setInterval(() => {
                         const now = Date.now();
                         let targetTime = isBuzzerPhase ? data.gameState.buzzerEndTime : data.gameState.roundEndTime;
@@ -567,8 +567,8 @@
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
                 if (roomData.gameState.buzzerId) return;
                 try {
-                    // Removed buffer, now using exact 10s
-                    await updateDoc(roomRef, { 'gameState.buzzerId': user.uid, 'gameState.buzzerEndTime': Date.now() + 10000 });
+                    // 這裡改為 15000 (15秒)
+                    await updateDoc(roomRef, { 'gameState.buzzerId': user.uid, 'gameState.buzzerEndTime': Date.now() + 15000 });
                     setExpression([]); setUsedCardIndices([]);
                 } catch (e) { console.error("搶答失敗", e); }
             };
