@@ -43,6 +43,15 @@
             60% { transform: scale(1.2); opacity: 1; }
             100% { transform: scale(1); opacity: 1; }
         }
+        .eliminated-overlay {
+            background: repeating-linear-gradient(
+              45deg,
+              rgba(0, 0, 0, 0.5),
+              rgba(0, 0, 0, 0.5) 10px,
+              rgba(20, 20, 20, 0.5) 10px,
+              rgba(20, 20, 20, 0.5) 20px
+            );
+        }
     </style>
 
     <!-- Import Map for React & Firebase modules -->
@@ -114,6 +123,7 @@
         const LucideVolumeX = (props) => <Icon {...props} path={<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" x2="17" y1="9" y2="15"/><line x1="17" x2="23" y1="9" y2="15"/></>} />;
         const LucideWifi = (props) => <Icon {...props} path={<><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></>} />;
         const LucideWifiOff = (props) => <Icon {...props} path={<><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></>} />;
+        const LucideSkull = (props) => <Icon {...props} path={<><path d="m12.5 17-.5-1-.5 1h1z"/><path d="M15 22a1 1 0 0 0 1-1v-1a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20v1a1 1 0 0 0 1 1z"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="12" r="1"/></>} />;
 
         // --- Firebase Configuration ---
         const defaultFirebaseConfig = {
@@ -535,11 +545,13 @@
                 // Use ref for latest data check
                 const currentData = roomDataRef.current || roomData;
                 
-                if (!resetScores && currentData) {
-                    const winner = Object.values(currentData.players).find(p => p.score >= 10);
-                    const loser = Object.values(currentData.players).find(p => p.score <= 0);
-                    if (winner || loser) { await updateDoc(roomRef, { status: 'finished' }); return; }
-                }
+                // Logic moved to updateScoreAndNextRound mainly, but check here for safety
+                // if (!resetScores && currentData) {
+                //     const winner = Object.values(currentData.players).find(p => p.score >= 10);
+                //     const loser = Object.values(currentData.players).find(p => p.score <= 0);
+                //     if (winner || loser) { await updateDoc(roomRef, { status: 'finished' }); return; }
+                // }
+                
                 let currentDeck = [...deckToUse];
                 if (currentDeck.length < 4) currentDeck = generateDeck();
                 const cards = [currentDeck.pop(), currentDeck.pop(), currentDeck.pop(), currentDeck.pop()];
@@ -563,8 +575,9 @@
             };
 
             const buzz = async () => {
-                // Note: sound is handled by useEffect listener on gameState.buzzerId
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
+                // Check if eliminated
+                if (roomData.players[user.uid].score <= 0) return;
                 if (roomData.gameState.buzzerId) return;
                 try {
                     // 這裡改為 15000 (15秒)
@@ -574,6 +587,9 @@
             };
 
             const submitAnswer = async () => {
+                // Strict check for timeout
+                if (timeLeft <= 0) return;
+
                 if (expression.length === 0) return;
                 const exprStr = expression.map(t => t.val).join(' ');
                 // Ensure display expression uses nice operators
@@ -596,7 +612,34 @@
 
                 const currentScore = currentData.players[playerId]?.score || 0;
                 const newScore = currentScore + scoreDelta;
-                const isGameOver = newScore >= 10 || newScore <= 0;
+                
+                // --- Elimination Logic ---
+                // Calculate how many *active* players (score > 0) are left after this update
+                const allPlayers = Object.values(currentData.players);
+                const totalPlayers = allPlayers.length;
+                let activePlayersCount = 0;
+                let winnerExists = false;
+
+                allPlayers.forEach(p => {
+                    // Simulate the score update
+                    const s = p.id === playerId ? newScore : p.score;
+                    if (s > 0) activePlayersCount++;
+                    if (s >= 10) winnerExists = true;
+                });
+
+                // Game Over if:
+                // 1. Someone hit 10 points (Winner!)
+                // 2. Multiplayer (started with >1): Only 1 or 0 players left alive (Survivor!)
+                // 3. Singleplayer (started with 1): 0 players left (Lost)
+                let isGameOver = false;
+                if (winnerExists) {
+                    isGameOver = true;
+                } else if (totalPlayers > 1) {
+                    if (activePlayersCount <= 1) isGameOver = true;
+                } else {
+                    // Single player
+                    if (activePlayersCount === 0) isGameOver = true;
+                }
 
                 const historyEntry = {
                     round: currentData.gameState.round || 1,
@@ -635,9 +678,15 @@
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'math24_rooms', roomId);
                 const votes = roomData.gameState.impossibleVotes || [];
                 if (votes.includes(user.uid)) return;
+                // Check if eliminated
+                if (roomData.players[user.uid].score <= 0) return;
+
                 const newVotes = [...votes, user.uid];
                 
-                if (newVotes.length >= Object.keys(roomData.players).length) {
+                // Get active player count for voting threshold
+                const activePlayersCount = Object.values(roomData.players).filter(p => p.score > 0).length;
+
+                if (newVotes.length >= activePlayersCount) {
                      const historyEntry = {
                         round: roomData.gameState.round || 1,
                         cards: roomData.gameState.currentCards,
@@ -774,6 +823,7 @@
             const buzzerId = roomData.gameState?.buzzerId;
             const iAmBuzzer = buzzerId === user.uid;
             const buzzerPlayer = buzzerId ? roomData.players[buzzerId] : null;
+            const isEliminated = myPlayer.score <= 0;
 
             const Card = ({ cardId, index, onClick, disabled, used }) => {
                 const { rank, suit, color } = getCardDetails(cardId);
@@ -874,17 +924,33 @@
                             {Object.values(roomData.players).map(p => {
                                 const isLeader = p.score === Math.max(...Object.values(roomData.players).map(pl => pl.score)) && p.score > 2;
                                 const isBuzzer = buzzerId === p.id;
+                                const pEliminated = p.score <= 0;
                                 return (
-                                    <div key={p.id} className={`relative p-4 rounded-xl border-2 transition-all duration-300 ${p.ready ? 'border-blue-500/50 bg-blue-950/30' : 'border-slate-700 bg-slate-800/50'} ${isLeader ? 'border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : ''} ${isBuzzer ? 'border-red-500 bg-red-950/30 shadow-[0_0_20px_rgba(239,68,68,0.5)] scale-105 z-20' : ''}`}>
-                                        {isLeader && <LucideCrown className="absolute -top-3 -left-2 w-6 h-6 text-yellow-400 fill-yellow-400 transform -rotate-12 drop-shadow-md"/>}
-                                        <div className="flex justify-between items-center mb-2"><span className={`font-bold text-lg ${isBuzzer ? 'text-white' : 'text-slate-200'}`}>{p.name}</span>{roomData.hostId === p.id && <span className="text-[0.65rem] bg-yellow-600 text-yellow-100 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">HOST</span>}</div>
-                                        <div className="flex justify-between items-end"><span className={`text-3xl font-black font-mono leading-none ${p.score <= 0 ? 'text-red-500' : isLeader ? 'text-yellow-400' : 'text-blue-400'}`}>{p.score}</span><div className="flex flex-col items-end">{buzzerId === p.id && <span className="text-xs text-red-400 animate-pulse font-bold flex items-center gap-1"><LucideZap className="w-3 h-3"/>搶答中</span>}{p.ready ? <LucideCheckCircle className="w-5 h-5 text-blue-500"/> : !isPlaying && !isResolving && <span className="text-xs text-slate-500">等待準備</span>}</div></div>
+                                    <div key={p.id} className={`relative p-4 rounded-xl border-2 transition-all duration-300 
+                                        ${pEliminated ? 'border-red-900 bg-red-950/20 opacity-70 grayscale' : 
+                                          p.ready ? 'border-blue-500/50 bg-blue-950/30' : 'border-slate-700 bg-slate-800/50'}
+                                        ${isLeader && !pEliminated ? 'border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : ''} 
+                                        ${isBuzzer ? 'border-red-500 bg-red-950/30 shadow-[0_0_20px_rgba(239,68,68,0.5)] scale-105 z-20' : ''}`}>
+                                        
+                                        {isLeader && !pEliminated && <LucideCrown className="absolute -top-3 -left-2 w-6 h-6 text-yellow-400 fill-yellow-400 transform -rotate-12 drop-shadow-md"/>}
+                                        {pEliminated && <LucideSkull className="absolute -top-3 -left-2 w-6 h-6 text-slate-500 fill-slate-800 transform rotate-12 drop-shadow-md"/>}
+                                        
+                                        <div className="flex justify-between items-center mb-2"><span className={`font-bold text-lg ${isBuzzer ? 'text-white' : pEliminated ? 'text-slate-500 line-through' : 'text-slate-200'}`}>{p.name}</span>{roomData.hostId === p.id && <span className="text-[0.65rem] bg-yellow-600 text-yellow-100 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">HOST</span>}</div>
+                                        <div className="flex justify-between items-end">
+                                            <span className={`text-3xl font-black font-mono leading-none ${p.score <= 0 ? 'text-slate-600' : isLeader ? 'text-yellow-400' : 'text-blue-400'}`}>{p.score}</span>
+                                            <div className="flex flex-col items-end">
+                                                {pEliminated ? <span className="text-xs text-red-500 font-bold uppercase tracking-wide">已淘汰</span> :
+                                                 buzzerId === p.id ? <span className="text-xs text-red-400 animate-pulse font-bold flex items-center gap-1"><LucideZap className="w-3 h-3"/>搶答中</span> :
+                                                 p.ready ? <LucideCheckCircle className="w-5 h-5 text-blue-500"/> : 
+                                                 !isPlaying && !isResolving && <span className="text-xs text-slate-500">等待準備</span>}
+                                            </div>
+                                        </div>
                                     </div>
                                 )
                             })}
                         </div>
                         <div className="space-y-3">
-                            {!isPlaying && !isResolving && <button onClick={toggleReady} className={`w-full py-4 rounded-xl font-black text-xl shadow-lg transition-all border-2 ${myPlayer.ready ? 'bg-red-900/20 border-red-800 text-red-400 hover:bg-red-900/40' : 'bg-blue-600 border-blue-400 text-white hover:bg-blue-500 hover:border-blue-300 hover:shadow-blue-500/30'}`}>{myPlayer.ready ? '取消準備' : '準備就緒'}</button>}
+                            {!isPlaying && !isResolving && !isEliminated && <button onClick={toggleReady} className={`w-full py-4 rounded-xl font-black text-xl shadow-lg transition-all border-2 ${myPlayer.ready ? 'bg-red-900/20 border-red-800 text-red-400 hover:bg-red-900/40' : 'bg-blue-600 border-blue-400 text-white hover:bg-blue-500 hover:border-blue-300 hover:shadow-blue-500/30'}`}>{myPlayer.ready ? '取消準備' : '準備就緒'}</button>}
                             {!isPlaying && !isResolving && isHost && <button onClick={startGame} className="w-full bg-gradient-to-r from-yellow-500 to-yellow-700 text-slate-900 py-4 rounded-xl font-black text-xl shadow-lg hover:from-yellow-400 hover:to-yellow-600 hover:shadow-yellow-500/30 disabled:opacity-30 disabled:cursor-not-allowed border-2 border-yellow-400 transition-all" disabled={!Object.values(roomData.players).every(p => p.ready)}>開始比賽</button>}
                             <button onClick={leaveRoom} className="w-full py-2 text-slate-500 text-sm hover:text-slate-300 transition flex items-center justify-center gap-1"><LucideXCircle className="w-4 h-4"/> 離開房間</button>
                         </div>
@@ -915,7 +981,7 @@
                                     ))}
                                 </div>
 
-                                {!buzzerId && (
+                                {!buzzerId && !isEliminated && (
                                     <div className="flex flex-col gap-6 w-full max-w-md animate-in fade-in zoom-in duration-300">
                                         <button onClick={buzz} className="group relative w-full bg-gradient-to-b from-red-500 to-red-700 hover:from-red-400 hover:to-red-600 active:from-red-700 active:to-red-800 text-white font-black py-8 rounded-3xl shadow-[0_12px_0_rgb(127,29,29),0_20px_30px_rgba(220,38,38,0.5)] active:shadow-[0_4px_0_rgb(127,29,29),0_5px_10px_rgba(220,38,38,0.3)] active:translate-y-2 transition-all border-4 border-red-400 overflow-hidden">
                                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.4)_0%,_transparent_70%)] opacity-0 group-hover:opacity-100 transition duration-500 animate-pulse"></div>
@@ -927,6 +993,13 @@
                                                 <LucideXCircle className="w-4 h-4"/>{roomData.gameState.impossibleVotes?.includes(user.uid) ? '已投票無解' : '這題無解 (投票)'} <span className="ml-2 bg-slate-900/80 px-3 py-0.5 rounded-full font-mono border border-slate-700">{roomData.gameState.impossibleVotes?.length || 0} / {Object.keys(roomData.players).length}</span>
                                             </button>
                                         </div>
+                                    </div>
+                                )}
+
+                                {!buzzerId && isEliminated && (
+                                    <div className="flex flex-col gap-6 w-full max-w-md animate-in fade-in zoom-in duration-300 p-6 rounded-2xl eliminated-overlay border-2 border-red-900/50 text-center">
+                                        <h3 className="text-2xl font-black text-red-500 mb-2 uppercase tracking-widest">已淘汰</h3>
+                                        <p className="text-slate-400 text-sm">您已用盡分數，目前為觀戰模式。</p>
                                     </div>
                                 )}
 
@@ -943,7 +1016,9 @@
                                             <button onClick={() => { playSound('click'); if(expression.length === 0) return; const last = expression[expression.length - 1]; if (last.type === 'num') { setUsedCardIndices(prev => { const newArr = [...prev]; newArr.pop(); return newArr; }); } setExpression(expression.slice(0, -1)); }} className="bg-yellow-600/80 hover:bg-yellow-600 text-yellow-100 border-b-4 border-yellow-800 active:border-b-0 active:translate-y-1 font-bold py-4 rounded-xl text-xl transition-all shadow-md">←</button>
                                             <button onClick={() => { playSound('click'); setExpression([]); setUsedCardIndices([]); }} className="bg-red-600/80 hover:bg-red-600 text-red-100 border-b-4 border-red-800 active:border-b-0 active:translate-y-1 font-bold py-4 rounded-xl text-xl transition-all shadow-md">C</button>
                                         </div>
-                                        <button onClick={submitAnswer} disabled={expression.length === 0} className="w-full bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-white font-black py-5 rounded-2xl text-2xl shadow-lg hover:shadow-green-500/30 border-2 border-green-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">確認提交 (= 24)</button>
+                                        <button onClick={submitAnswer} disabled={expression.length === 0 || timeLeft <= 0} className="w-full bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-white font-black py-5 rounded-2xl text-2xl shadow-lg hover:shadow-green-500/30 border-2 border-green-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                            {timeLeft <= 0 ? "時間到！" : "確認提交 (= 24)"}
+                                        </button>
                                     </div>
                                 )}
                             </div>
